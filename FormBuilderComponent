@@ -1,0 +1,750 @@
+import React, { useEffect, useState } from 'react'
+import ReactDOM from 'react-dom'
+import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd'
+import { uid } from 'uid'
+import {
+    Button,
+    Col,
+    Flex,
+    Form,
+    Menu,
+    Modal,
+    Row,
+    Checkbox,
+    Input,
+    Select,
+    Space,
+    Tooltip,
+} from 'antd'
+import {
+    HolderOutlined,
+    NumberOutlined,
+    EditOutlined,
+    DeleteOutlined,
+    PlusOutlined,
+    CloseCircleOutlined,
+    QuestionCircleOutlined,
+} from '@ant-design/icons'
+
+import FormItem from 'antd/es/form/FormItem'
+
+const reorder = (list, startIndex, endIndex) => {
+    const result = Array.from(list)
+    const removed = result.splice(startIndex, 1)
+    result.splice(endIndex, 0, removed[0])
+
+    return result
+}
+
+const grid = 8
+
+const getItemStyleInputType = (isDragging, draggableStyle) => ({
+    // some basic styles to make the items look a bit nicer
+    userSelect: 'none',
+    padding: grid * 2,
+    margin: `0 0 ${grid}px 0`,
+    borderRadius: '5px',
+
+    // change background colour if dragging
+    background: isDragging ? 'rgb(138, 208, 255)' : 'transparent',
+    color: isDragging ? 'black' : 'transparent',
+    boxShadow: isDragging ? '5px 5px 10px rgba(0,0,0,.2)' : null,
+
+    // styles we need to apply on draggables
+    ...draggableStyle,
+})
+const getListStyleInputType = (isDraggingOver) => ({
+    background: 'white',
+    width: 250,
+    height: 54,
+    margin: '.5rem 0',
+    border: '1px solid rgb(163, 163, 163)',
+    borderRadius: 5,
+    // boxShadow: '5px 5px 10px rgba(0,0,0,.2)',
+})
+
+const getItemStyle = (isDragging, draggableStyle) => ({
+    // some basic styles to make the items look a bit nicer
+    userSelect: 'none',
+    padding: grid * 2,
+    margin: `0 0 ${grid}px 0`,
+    borderRadius: '5px',
+    display: 'flex',
+    justifyContent: 'space-between',
+    width: '100%',
+
+    // change background colour if dragging
+    background: isDragging ? 'rgb(138, 208, 255)' : 'white',
+    color: isDragging ? 'black' : 'black',
+    boxShadow: '5px 5px 10px rgba(0,0,0,.2)',
+
+    // styles we need to apply on draggables
+    ...draggableStyle,
+})
+const getListStyle = (isDraggingOver) => ({
+    background: isDraggingOver ? 'rgb(216, 216, 216)' : 'white',
+    border: '1px dashed rgb(126, 126, 126)',
+    borderRadius: '5px',
+    padding: grid,
+    width: '30rem',
+    height: '100%',
+    flex: '1 1 auto',
+    display: 'flex',
+    alignItems: 'center',
+    flexDirection: 'column',
+    margin: ' 0 2rem',
+    overflowY: 'auto',
+})
+
+function FormBuilderComponent() {
+    const inputsList = [
+        {
+            id: '0',
+            title: 'input',
+            label: 'ورودی',
+        },
+        {
+            id: '1',
+            title: 'select',
+            label: 'انتخاب',
+        },
+        {
+            id: '2',
+            title: 'date',
+            label: 'تاریخ',
+        },
+        {
+            id: '3',
+            title: 'date-time',
+            label: 'تاریخ-زمان',
+        },
+        {
+            id: '4',
+            title: 'checkbox',
+            label: 'چک باکس',
+        },
+        { id: '5', title: 'group-radio', label: 'ورودی رادیویی' },
+    ]
+
+    const [inputTypes, setInputTypes] = useState(inputsList)
+    const [schema, setSchema] = useState([])
+
+    const [editFieldName, setEditFieldName] = useState(null)
+
+    // const [state, setState] = useState([inputsList, getItems(5, 10)])
+    const [dragStarted, setDragStarted] = useState(false)
+    const [isModalOpen, setIsModalOpen] = useState(false)
+    const [selectedInputTitle, setSelectedInputTitle] = useState(null)
+
+    useEffect(() => {
+        console.log(schema)
+    }, [schema])
+
+    const addToSchema = (newField) => {
+        setSchema((prev) => {
+            const newState = [...prev]
+            newState.push(newField)
+            return newState
+        })
+    }
+
+    const editFieldItem = (newData) => {
+        const name = newData.name
+        setSchema((prev) => {
+            const newState = prev.filter((item) => item.name !== name)
+            newState.push(newData)
+            return newState
+        })
+    }
+
+    function onDragEnd(result) {
+        setDragStarted(false)
+        const { source, destination } = result
+
+        if (
+            source.droppableId !== 'form-fields' &&
+            destination.droppableId === 'form-fields'
+        ) {
+            setSelectedInputTitle(inputTypes[source.droppableId].title)
+
+            setIsModalOpen(true)
+        } else if (
+            source.droppableId === 'form-fields' &&
+            source.droppableId === 'form-fields'
+        ) {
+            setSchema((prev) => {
+                const newState = [...prev]
+
+                const items = reorder(newState, source.index, destination.index)
+
+                // const element = newState.splice(source.index, 1)[0]
+                // newState.splice(destination.index, 0, element)
+
+                return items
+            })
+        }
+
+        if (!destination) {
+            return
+        }
+
+        if (destination.droppableId === '1') {
+            return
+        }
+    }
+
+    const fieldEditHandler = (data) => {
+        setSelectedInputTitle(data.type)
+        setEditFieldName(data.name)
+        setIsModalOpen(true)
+    }
+
+    const fieldDeleteHandler = (name) => {
+        setSchema((prev) => {
+            const newState = prev.filter((item) => item.name !== name)
+            return newState
+        })
+    }
+
+    return (
+        <div>
+            <div style={{ display: 'flex', padding: '1rem', height: '90vh' }}>
+                <DragDropContext
+                    onDragStart={() => setDragStarted(true)}
+                    onDragEnd={onDragEnd}
+                >
+                    <div
+                        style={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                        }}
+                    >
+                        {inputTypes.map((item, index) => (
+                            <Droppable key={index} droppableId={`${index}`}>
+                                {(provided, snapshot) => (
+                                    <div
+                                        ref={provided.innerRef}
+                                        style={{
+                                            ...getListStyleInputType(
+                                                snapshot.isDraggingOver
+                                            ),
+                                        }}
+                                        {...provided.droppableProps}
+                                    >
+                                        <InputType
+                                            id={item.id}
+                                            draggableId={item.id}
+                                            index={index}
+                                            label={item.label}
+                                        />
+                                        {/* {provided.placeholder} */}
+                                        {provided.placeholder}
+                                    </div>
+                                )}
+                            </Droppable>
+                        ))}
+                    </div>
+
+                    <Droppable key={1} droppableId={`form-fields`}>
+                        {(provided, snapshot) => (
+                            <div
+                                ref={provided.innerRef}
+                                style={getListStyle(snapshot.isDraggingOver)}
+                                {...provided.droppableProps}
+                            >
+                                {schema.length !== 0 ? (
+                                    schema.map((item, index) => {
+                                        return (
+                                            <SelectedField
+                                                item={item}
+                                                index={index}
+                                                onEditField={fieldEditHandler}
+                                                onDeleteField={
+                                                    fieldDeleteHandler
+                                                }
+                                            />
+                                        )
+                                    })
+                                ) : (
+                                    <div
+                                        style={{
+                                            position: 'absolute',
+                                            top: '45%',
+                                        }}
+                                    >
+                                        <div>
+                                            ورودی های مورد نظر را به این قسمت
+                                            بیندازید.
+                                        </div>
+                                    </div>
+                                )}
+                                {provided.placeholder}
+                            </div>
+                        )}
+                    </Droppable>
+                </DragDropContext>
+
+                <FormBuilderModal
+                    isModalOpen={isModalOpen}
+                    setIsModalOpen={setIsModalOpen}
+                    editFieldName={editFieldName}
+                    setEditFieldName={setEditFieldName}
+                    selectedInputTitle={selectedInputTitle}
+                    setSelectedInputTitle={setSelectedInputTitle}
+                    addFieldStruct={addToSchema}
+                    editFieldItem={editFieldItem}
+                    schema={schema}
+                    setSchema={setSchema}
+                />
+            </div>
+        </div>
+    )
+}
+
+export default FormBuilderComponent
+
+const InputType = ({ id, draggableId, index, label }) => {
+    return (
+        <div
+            style={{
+                position: 'relative',
+            }}
+        >
+            <div
+                style={{
+                    width: '100%',
+                }}
+            >
+                <Draggable key={id} draggableId={id} index={index}>
+                    {(provided, snapshot) => (
+                        <div>
+                            <div
+                                ref={provided.innerRef}
+                                {...provided.draggableProps}
+                                {...provided.dragHandleProps}
+                                style={getItemStyleInputType(
+                                    snapshot.isDragging,
+                                    provided.draggableProps.style
+                                )}
+                            >
+                                <div
+                                    style={{
+                                        display: 'flex',
+                                        justifyContent: 'space-around',
+                                    }}
+                                >
+                                    {label}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </Draggable>
+            </div>
+            <div>
+                <div
+                    style={{
+                        widows: '100px',
+                        position: 'absolute',
+                        top: 7,
+                        right: '50%',
+                        transform: 'translate(50%, 50%)',
+                        display: 'flex',
+                        justifyContent: 'center',
+                        alignContent: 'center',
+                        userSelect: 'none',
+                    }}
+                >
+                    <Flex
+                        style={{ position: 'absolute', left: '-50px', top: 2 }}
+                    >
+                        <Tooltip placement="top" title={"d"}>
+                            <QuestionCircleOutlined  />
+                        </Tooltip>
+                    </Flex>
+                    <Flex style={{ position: 'relative' }}>{label}</Flex>
+                </div>
+            </div>
+        </div>
+    )
+}
+
+const SelectedField = ({ item, index, onEditField, onDeleteField }) => {
+    return (
+        <Draggable key={item.id} draggableId={item.name} index={index}>
+            {(provided, snapshot) => (
+                <div
+                    ref={provided.innerRef}
+                    {...provided.draggableProps}
+                    style={getItemStyle(
+                        snapshot.isDragging,
+                        provided.draggableProps.style
+                    )}
+                >
+                    <Row
+                        gutter={24}
+                        style={{
+                            display: 'flex',
+                            width: '100%',
+                            alignItems: 'center',
+                        }}
+                    >
+                        <Col xs={2}>
+                            <NumberOutlined /> <span>{index + 1}</span>
+                        </Col>
+
+                        <Col lg={7}>
+                            <span style={{ fontSize: '12px' }}>نام فیلد: </span>
+                            <span style={{ fontWeight: 'bold' }}>
+                                {item.label}
+                            </span>
+                        </Col>
+
+                        <Col xs={5}>
+                            <span style={{ fontSize: '12px' }}>نوع: </span>
+                            <span style={{ fontWeight: 'bold' }}>
+                                {item.type[0].toUpperCase() +
+                                    item.type.slice(1)}
+                            </span>
+                        </Col>
+                        <Col xs={5}>
+                            <span style={{ fontSize: '12px' }}>اجباری: </span>
+                            <span style={{ fontWeight: 'bold' }}>
+                                {item.required ? 'بله' : 'خیر'}
+                            </span>
+                        </Col>
+
+                        <Col xs={4}>
+                            <Flex gap={5}>
+                                <Button
+                                    onClick={() => {
+                                        onEditField(item)
+                                    }}
+                                    icon={<EditOutlined />}
+                                    shape="circle"
+                                />
+                                <Button
+                                    onClick={() => {
+                                        onDeleteField(item.name)
+                                    }}
+                                    icon={<DeleteOutlined />}
+                                    shape="circle"
+                                    danger
+                                />
+                            </Flex>
+                        </Col>
+
+                        <Col
+                            xs={1}
+                            style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                height: '100%',
+                            }}
+                        >
+                            <div
+                                // style={{ background: 'red' }}
+                                {...provided.dragHandleProps}
+                            >
+                                <HolderOutlined />
+                            </div>
+                        </Col>
+                    </Row>
+                </div>
+            )}
+        </Draggable>
+    )
+}
+
+const FormBuilderModal = (props) => {
+    const selectedInput = props.selectedInputTitle
+
+    const [inputValues, setInputValues] = useState({})
+    const [form] = Form.useForm()
+    const [subType, setSubType] = useState(null)
+
+    useEffect(() => {
+        if (props.editFieldName) {
+            const editItemData = props.schema.find(
+                (s) => s.name === props.editFieldName
+            )
+            form.setFieldsValue(editItemData)
+        }
+    }, [props.editFieldName])
+
+    const uniqueName = `${selectedInput}${
+        subType ? '-' + subType : ''
+    }-${uid()}`
+
+    let fieldStruct = {
+        type: selectedInput,
+        name: props.editFieldName || uniqueName,
+    }
+
+    const reset = () => {
+        props.setIsModalOpen(false)
+        props.setEditFieldName(null)
+        form.resetFields()
+    }
+
+    const handleOk = () => {
+        form.validateFields()
+            .then(() => {
+                const fields = form.getFieldsValue()
+                fieldStruct = { ...fieldStruct, ...fields }
+
+                if (props.editFieldName) {
+                    props.editFieldItem(fieldStruct)
+                } else {
+                    props.addFieldStruct(fieldStruct)
+                }
+
+                reset()
+            })
+            .catch((error) => {
+                props.setIsModalOpen(true)
+                console.log(error)
+            })
+    }
+
+    const handleCancel = () => {
+        form.resetFields()
+        props.setIsModalOpen(false)
+        props.setEditFieldName(null)
+    }
+
+    const fieldsChangeHandler = (e) => {
+        setInputValues((prev) => {
+            const newState = { ...prev }
+            newState[e.target.name] = e.target.value
+            return newState
+        })
+    }
+
+    const dateChangeHandler = (date, dateString) => {
+        setInputValues((prev) => {
+            const newState = { ...prev }
+            newState['date'] = dateString
+            return newState
+        })
+    }
+
+    let formChildren = null
+
+    switch (selectedInput) {
+        case 'input':
+            formChildren = (
+                <>
+                    <Form.Item
+                        label="نوع ورودی"
+                        name="select-input-type"
+                        rules={[
+                            {
+                                required: true,
+                            },
+                        ]}
+                    >
+                        <Select
+                            defaultValue="text"
+                            style={{ width: 120 }}
+                            options={[
+                                { value: 'text', label: 'متن' },
+                                { value: 'number', label: 'عدد' },
+                                { value: 'textarea', label: 'جعبه متن' },
+                            ]}
+                            onChange={(v) => {
+                                setSubType(v)
+                                form.setFieldValue('name', uniqueName)
+                            }}
+                        />
+                    </Form.Item>
+                </>
+            )
+            break
+        case 'select':
+            formChildren = <FormList label={'گزینه ها'} form={form} />
+            break
+        case 'date':
+            break
+        case 'checkbox':
+            formChildren = (
+                <>
+                    <Form.Item
+                        label="چک باکس"
+                        name="chx-checkbox"
+                        rules={[
+                            {
+                                required: true,
+                            },
+                        ]}
+                        valuePropName="checked"
+                    >
+                        <Checkbox>به طور پیش فرض انتخاب شده باشد؟</Checkbox>
+                    </Form.Item>
+
+                    <FormItem
+                        label="چک باکس های گروهی"
+                        name="checkbox-group"
+                        rules={[
+                            {
+                                required: true,
+                            },
+                        ]}
+                    ></FormItem>
+                </>
+            )
+            break
+        case 'date-time':
+            break
+        case 'radion-button':
+    }
+
+    return (
+        <Modal
+            title={`مشخصات فیلد ${
+                selectedInput?.[0].toUpperCase() + selectedInput?.slice(1)
+            }`}
+            open={props.isModalOpen}
+            onOk={handleOk}
+            onCancel={handleCancel}
+            width={800}
+        >
+            <Form
+                form={form}
+                style={{ margin: '3rem 0' }}
+                initialValues={{ name: uniqueName, required: false }}
+                layout="vertical"
+            >
+                <Row gutter={24} style={{ marginBottom: '.5rem' }}>
+                    <Col lg={8}>
+                        <Form.Item
+                            label="اجباری"
+                            name="required"
+                            rules={[
+                                {
+                                    required: true,
+                                },
+                            ]}
+                            valuePropName="checked"
+                        >
+                            <Checkbox
+                                name="required"
+                                value={inputValues.required}
+                                onChange={fieldsChangeHandler}
+                            ></Checkbox>
+                        </Form.Item>
+                    </Col>
+                    <Col lg={8}>
+                        <Form.Item
+                            label="نام"
+                            name="name"
+                            rules={[
+                                {
+                                    required: false,
+                                },
+                            ]}
+                        >
+                            <Input readOnly />
+                        </Form.Item>
+                    </Col>
+                    <Col lg={8}>
+                        <Form.Item
+                            label="عنوان"
+                            name="label"
+                            rules={[
+                                {
+                                    required: true,
+                                },
+                            ]}
+                        >
+                            <Input
+                                name="label"
+                                value={inputValues.label}
+                                onChange={fieldsChangeHandler}
+                            />
+                        </Form.Item>
+                    </Col>
+                </Row>
+
+                {formChildren}
+            </Form>
+        </Modal>
+    )
+}
+
+const FormList = ({ label, form }) => {
+    return (
+        <>
+            <label>{label}</label>
+            <Form.List name="select-options" label="hello">
+                {(fields, { add, remove }) => (
+                    <>
+                        {fields.map(({ key, name, ...restField }) => {
+                            return (
+                                <Row
+                                    gutter={24}
+                                    key={key}
+                                    style={{
+                                        margin: '0 0',
+                                    }}
+                                    gap={100}
+                                >
+                                    <Col xs={1}>
+                                        <CloseCircleOutlined
+                                            onClick={() => remove(name)}
+                                        />
+                                    </Col>
+                                    <Col xs={10}>
+                                        <Form.Item
+                                            {...restField}
+                                            name={[name, 'label']}
+                                            rules={[
+                                                {
+                                                    required: true,
+                                                },
+                                            ]}
+                                            style={{ flex: '1 1 auto' }}
+                                        >
+                                            <Input placeholder="عنوان" />
+                                        </Form.Item>
+                                    </Col>
+
+                                    <Col xs={10}>
+                                        <Form.Item
+                                            initialValue={
+                                                'select-option-' + uid()
+                                            }
+                                            {...restField}
+                                            name={[name, 'value']}
+                                            rules={[
+                                                {
+                                                    required: true,
+                                                },
+                                            ]}
+                                            style={{ flex: '1 1 auto' }}
+                                        >
+                                            <Input
+                                                placeholder="مقدار"
+                                                style={{ width: '100%' }}
+                                                readOnly
+                                            />
+                                        </Form.Item>
+                                    </Col>
+                                </Row>
+                            )
+                        })}
+                        <Form.Item>
+                            <Button
+                                type="dashed"
+                                onClick={() => add()}
+                                block
+                                icon={<PlusOutlined />}
+                            >
+                                اضافه کردن گزینه
+                            </Button>
+                        </Form.Item>
+                    </>
+                )}
+            </Form.List>
+        </>
+    )
+}
