@@ -1,0 +1,54 @@
+import { Button, Col, Collapse, List, Menu, Row, theme } from 'antd'
+import React, { Children } from 'react'
+import AppLayout from '../AppLayout'
+import { Link, useParams } from 'react-router-dom'
+import { uid } from 'uid'
+import FormBuilderComponent from "../../components/FormBuilderComponent"
+import { AppstoreAddOutlined } from '@ant-design/icons'
+import { DragDropContext, Draggable, Droppable } from 'react-beautiful-dnd'
+
+
+const FormBuilder = () => {
+    const {
+        token: { colorPrimary, colorBgLayout },
+    } = theme.useToken()
+    const { id } = useParams()
+
+    const inputsList = [
+        {
+            title: 'input',
+            label: 'ورودی',
+            children: [{ title: 'number-input', label: 'ورودی عددی' }],
+        },
+    ]
+
+    const breadcrumbs =
+        id === undefined
+            ? [
+                  { key: '0', title: <Link to="/">میزکار</Link> },
+                  { key: '1', title: <Link to="/accounts">فرم ها</Link> },
+                  { key: '2', title: 'جدید' },
+              ]
+            : [
+                  { key: '0', title: <Link to="/">میزکار</Link> },
+                  { key: '1', title: <Link to="/accounts">فرم ها</Link> },
+                  {
+                      key: '2',
+                      title: <Link to={`/accounts/${id}/view`}>{3}</Link>,
+                  },
+                  { key: '3', title: 'ویرایش' },
+              ]
+
+    return (
+        <AppLayout
+            // isLoading={isLoading}
+            // footer={footer}
+            // breadcrumbs={breadcrumbs}
+            padding="10px"
+        >
+            <FormBuilderComponent />
+        </AppLayout>
+    )
+}
+
+export default FormBuilder
