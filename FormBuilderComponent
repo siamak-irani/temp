@@ -102,16 +102,20 @@ function FormBuilderComponent() {
             id: '0',
             title: 'input',
             label: 'ورودی',
+            description:
+                'از سه نوع ورودی متنی، عددی و جعبه متن(برای متن ها طولانی) یکی را اضافه کنید.',
         },
         {
             id: '1',
             title: 'select',
             label: 'انتخاب',
+            description:"این نوع ورودی چند گزینه را ارائه میدهد تا یکی را از بین آن ها انتخاب کنید."
         },
         {
             id: '2',
             title: 'date',
             label: 'تاریخ',
+            discription: "ورودی از نوع تاریخ"
         },
         {
             id: '3',
@@ -357,8 +361,8 @@ const InputType = ({ id, draggableId, index, label }) => {
                     <Flex
                         style={{ position: 'absolute', left: '-50px', top: 2 }}
                     >
-                        <Tooltip placement="top" title={"d"}>
-                            <QuestionCircleOutlined  />
+                        <Tooltip placement="top" title={'d'}>
+                            <QuestionCircleOutlined />
                         </Tooltip>
                     </Flex>
                     <Flex style={{ position: 'relative' }}>{label}</Flex>
