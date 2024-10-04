@@ -15,6 +15,7 @@ import {
     Select,
     Space,
     Tooltip,
+    Card,
 } from 'antd'
 import {
     HolderOutlined,
@@ -32,27 +33,12 @@ const reorder = (list, startIndex, endIndex) => {
     const result = Array.from(list)
     const removed = result.splice(startIndex, 1)
     result.splice(endIndex, 0, removed[0])
-
     return result
 }
 
 const grid = 8
 
-const getItemStyleInputType = (isDragging, draggableStyle) => ({
-    // some basic styles to make the items look a bit nicer
-    userSelect: 'none',
-    padding: grid * 2,
-    margin: `0 0 ${grid}px 0`,
-    borderRadius: '5px',
-
-    // change background colour if dragging
-    background: isDragging ? 'rgb(138, 208, 255)' : 'transparent',
-    color: isDragging ? 'black' : 'transparent',
-    boxShadow: isDragging ? '5px 5px 10px rgba(0,0,0,.2)' : null,
-
-    // styles we need to apply on draggables
-    ...draggableStyle,
-})
+const getItemStyleInputType = (isDragging, draggableStyle) => ({})
 const getListStyleInputType = (isDraggingOver) => ({
     background: 'white',
     width: 250,
@@ -66,21 +52,17 @@ const getListStyleInputType = (isDraggingOver) => ({
 const getItemStyle = (isDragging, draggableStyle) => ({
     // some basic styles to make the items look a bit nicer
     userSelect: 'none',
-    padding: grid * 2,
+    padding: 8,
     margin: `0 0 ${grid}px 0`,
     borderRadius: '5px',
     display: 'flex',
     justifyContent: 'space-between',
     width: '100%',
-
-    // change background colour if dragging
     background: isDragging ? 'rgb(138, 208, 255)' : 'white',
     color: isDragging ? 'black' : 'black',
-    boxShadow: '5px 5px 10px rgba(0,0,0,.2)',
-
-    // styles we need to apply on draggables
     ...draggableStyle,
 })
+
 const getListStyle = (isDraggingOver) => ({
     background: isDraggingOver ? 'rgb(216, 216, 216)' : 'white',
     border: '1px dashed rgb(126, 126, 126)',
@@ -97,7 +79,7 @@ const getListStyle = (isDraggingOver) => ({
 })
 
 function FormBuilderComponent() {
-    const inputsList = [
+    const inputTypes = [
         {
             id: '0',
             title: 'input',
@@ -109,42 +91,80 @@ function FormBuilderComponent() {
             id: '1',
             title: 'select',
             label: 'انتخاب',
-            description:"این نوع ورودی چند گزینه را ارائه میدهد تا یکی را از بین آن ها انتخاب کنید."
+            description:
+                'این نوع ورودی چند گزینه را ارائه میدهد تا یکی را از بین آن ها انتخاب کنید.',
         },
         {
             id: '2',
             title: 'date',
             label: 'تاریخ',
-            discription: "ورودی از نوع تاریخ"
+            discription: 'ورودی از نوع تاریخ',
         },
         {
             id: '3',
             title: 'date-time',
             label: 'تاریخ-زمان',
+            description: 'علاوه بر تاریخ، ورودی زمان را نیز اضافه کنید.',
         },
         {
             id: '4',
             title: 'checkbox',
             label: 'چک باکس',
+            description:
+                'از بین گزینه ها، یک یا چند تا از آن ها را انتخاب کنید.',
         },
-        { id: '5', title: 'group-radio', label: 'ورودی رادیویی' },
+        {
+            id: '5',
+            title: 'group-radio',
+            label: 'ورودی رادیویی',
+            description:
+                'مشابه چک باکس شامل چند گزینه اما مانند رادیوهای قدیمی با کلیک کردن روی یک دکمه، بقیه آنها غیرفعال می‌شوند.',
+        },
     ]
 
-    const [inputTypes, setInputTypes] = useState(inputsList)
-    const [schema, setSchema] = useState([])
+    const [schema, setSchema] = useState([
+        {
+            id: 'input-textarea-003c777f310',
+            type: 'date',
+            name: 'input-textarea-003c777f310',
+            required: false,
+            label: 'sadfsadfd',
+        },
+        {
+            id: 'input-3003c777f31',
+            type: 'input',
+            name: 'input-3003c777f31',
+            required: true,
+            label: 'joida',
+            'select-input-type': 'textarea',
+        },
+        {
+            id: 'date-textarea-e4d604bd612',
 
-    const [editFieldName, setEditFieldName] = useState(null)
+            type: 'date',
+            name: 'date-textarea-e4d604bd612',
+            required: false,
+            label: 'adfadf',
+        },
+        {
+            id: 'date-textarea-14d34799dce',
+            type: 'date',
+            name: 'date-textarea-14d34799dce',
+            required: false,
+            label: 'adfsdsf',
+        },
+    ])
 
-    // const [state, setState] = useState([inputsList, getItems(5, 10)])
-    const [dragStarted, setDragStarted] = useState(false)
+    const [editableFieldName, setEditableFieldName] = useState(null)
+
     const [isModalOpen, setIsModalOpen] = useState(false)
-    const [selectedInputTitle, setSelectedInputTitle] = useState(null)
+    const [fieldTitleInProgress, setFieldTitleInProgress] = useState(null)
 
-    useEffect(() => {
-        console.log(schema)
-    }, [schema])
+    // useEffect(() => {
+    //     console.log(schema)
+    // }, [schema])
 
-    const addToSchema = (newField) => {
+    const addNewToSchemaHandler = (newField) => {
         setSchema((prev) => {
             const newState = [...prev]
             newState.push(newField)
@@ -152,24 +172,37 @@ function FormBuilderComponent() {
         })
     }
 
-    const editFieldItem = (newData) => {
-        const name = newData.name
+    const editFieldHandler = (editedFieldData) => {
         setSchema((prev) => {
-            const newState = prev.filter((item) => item.name !== name)
-            newState.push(newData)
+            const newState = [...prev]
+
+            newState.forEach((item, index)=>{
+                if(item.name === editedFieldData.name)
+                {
+                    item.label = "666"
+                }
+            })
+
+            // let prevFieldData = newState.find(item =>  item.name === editedFieldData.name)
+            // prevFieldData = {...editedFieldData}
+
+   
             return newState
         })
     }
 
     function onDragEnd(result) {
-        setDragStarted(false)
         const { source, destination } = result
+
+        if (!destination) {
+            return
+        }
 
         if (
             source.droppableId !== 'form-fields' &&
             destination.droppableId === 'form-fields'
         ) {
-            setSelectedInputTitle(inputTypes[source.droppableId].title)
+            setFieldTitleInProgress(inputTypes[source.droppableId].title)
 
             setIsModalOpen(true)
         } else if (
@@ -178,28 +211,16 @@ function FormBuilderComponent() {
         ) {
             setSchema((prev) => {
                 const newState = [...prev]
-
-                const items = reorder(newState, source.index, destination.index)
-
-                // const element = newState.splice(source.index, 1)[0]
-                // newState.splice(destination.index, 0, element)
-
-                return items
+                const [element] = newState.splice(source.index, 1)
+                newState.splice(destination.index, 0, element)
+                return newState
             })
-        }
-
-        if (!destination) {
-            return
-        }
-
-        if (destination.droppableId === '1') {
-            return
         }
     }
 
     const fieldEditHandler = (data) => {
-        setSelectedInputTitle(data.type)
-        setEditFieldName(data.name)
+        setFieldTitleInProgress(data.type)
+        setEditableFieldName(data.name)
         setIsModalOpen(true)
     }
 
@@ -211,178 +232,198 @@ function FormBuilderComponent() {
     }
 
     return (
-        <div>
-            <div style={{ display: 'flex', padding: '1rem', height: '90vh' }}>
-                <DragDropContext
-                    onDragStart={() => setDragStarted(true)}
-                    onDragEnd={onDragEnd}
-                >
-                    <div
-                        style={{
-                            display: 'flex',
-                            flexDirection: 'column',
-                        }}
-                    >
-                        {inputTypes.map((item, index) => (
-                            <Droppable key={index} droppableId={`${index}`}>
-                                {(provided, snapshot) => (
-                                    <div
-                                        ref={provided.innerRef}
-                                        style={{
-                                            ...getListStyleInputType(
-                                                snapshot.isDraggingOver
-                                            ),
-                                        }}
-                                        {...provided.droppableProps}
-                                    >
-                                        <InputType
-                                            id={item.id}
-                                            draggableId={item.id}
+        <Flex style={{ height: '90vh' }}>
+            <DragDropContext onDragEnd={onDragEnd}>
+                <DraggableField inputTypes={inputTypes} />
+
+                <Droppable key={1} droppableId={'form-fields'}>
+                    {(provided, snapshot) => (
+                        <Flex
+                            ref={provided.innerRef}
+                            style={getListStyle(snapshot.isDraggingOver)}
+                            {...provided.droppableProps}
+                        >
+                            {schema.length !== 0 ? (
+                                schema.map((item, index) => {
+                                    return (
+                                        <FieldDisplayItem
+                                            item={item}
                                             index={index}
-                                            label={item.label}
+                                            ononEditField={fieldEditHandler}
+                                            onDeleteField={fieldDeleteHandler}
                                         />
-                                        {/* {provided.placeholder} */}
-                                        {provided.placeholder}
-                                    </div>
-                                )}
-                            </Droppable>
-                        ))}
-                    </div>
+                                    )
+                                })
+                            ) : (
+                                <Flex
+                                    style={{
+                                        position: 'absolute',
+                                        top: '45%',
+                                    }}
+                                >
+                                    <Flex>
+                                        ورودی های مورد نظر را به این قسمت
+                                        بیندازید.
+                                    </Flex>
+                                </Flex>
+                            )}
+                            {provided.placeholder}
+                        </Flex>
+                    )}
+                </Droppable>
+            </DragDropContext>
 
-                    <Droppable key={1} droppableId={`form-fields`}>
-                        {(provided, snapshot) => (
-                            <div
-                                ref={provided.innerRef}
-                                style={getListStyle(snapshot.isDraggingOver)}
-                                {...provided.droppableProps}
-                            >
-                                {schema.length !== 0 ? (
-                                    schema.map((item, index) => {
-                                        return (
-                                            <SelectedField
-                                                item={item}
-                                                index={index}
-                                                onEditField={fieldEditHandler}
-                                                onDeleteField={
-                                                    fieldDeleteHandler
-                                                }
-                                            />
-                                        )
-                                    })
-                                ) : (
-                                    <div
-                                        style={{
-                                            position: 'absolute',
-                                            top: '45%',
-                                        }}
-                                    >
-                                        <div>
-                                            ورودی های مورد نظر را به این قسمت
-                                            بیندازید.
-                                        </div>
-                                    </div>
-                                )}
-                                {provided.placeholder}
-                            </div>
-                        )}
-                    </Droppable>
-                </DragDropContext>
-
-                <FormBuilderModal
-                    isModalOpen={isModalOpen}
-                    setIsModalOpen={setIsModalOpen}
-                    editFieldName={editFieldName}
-                    setEditFieldName={setEditFieldName}
-                    selectedInputTitle={selectedInputTitle}
-                    setSelectedInputTitle={setSelectedInputTitle}
-                    addFieldStruct={addToSchema}
-                    editFieldItem={editFieldItem}
-                    schema={schema}
-                    setSchema={setSchema}
-                />
-            </div>
-        </div>
+            <FormBuilderModal
+                isModalOpen={isModalOpen}
+                setIsModalOpen={setIsModalOpen}
+                editableFieldName={editableFieldName}
+                setEditableFieldName={setEditableFieldName}
+                fieldTitleInProgress={fieldTitleInProgress}
+                onAddNewField={addNewToSchemaHandler}
+                onEditField={editFieldHandler}
+                schema={schema}
+            />
+        </Flex>
     )
 }
 
 export default FormBuilderComponent
 
-const InputType = ({ id, draggableId, index, label }) => {
+const DraggableField = ({ inputTypes }) => {
     return (
-        <div
+        <Flex
             style={{
-                position: 'relative',
+                flexDirection: 'column',
             }}
         >
-            <div
-                style={{
-                    width: '100%',
-                }}
-            >
-                <Draggable key={id} draggableId={id} index={index}>
+            {inputTypes.map((item, index) => (
+                <Droppable key={index} droppableId={`${index}`}>
                     {(provided, snapshot) => (
-                        <div>
-                            <div
-                                ref={provided.innerRef}
-                                {...provided.draggableProps}
-                                {...provided.dragHandleProps}
-                                style={getItemStyleInputType(
-                                    snapshot.isDragging,
-                                    provided.draggableProps.style
-                                )}
+                        <Card
+                            ref={provided.innerRef}
+                            style={{
+                                background: 'white',
+                                width: 250,
+                                height: 54,
+                                margin: '.5rem 0',
+                                borderRadius: 5,
+                                position: 'relative',
+                            }}
+                            {...provided.droppableProps}
+                        >
+                            <Flex
+                                style={{
+                                    position: 'absolute',
+                                    top: '50%',
+                                    left: '50%',
+                                    transform: 'translate(-50%, -50%)',
+                                }}
                             >
-                                <div
-                                    style={{
-                                        display: 'flex',
-                                        justifyContent: 'space-around',
-                                    }}
+                                {item.label}
+                            </Flex>
+
+                            <Flex
+                                style={{
+                                    position: 'absolute',
+                                    top: '50%',
+                                    left: '10%',
+                                    transform: 'translate(-50%, -50%)',
+                                    cursor: 'pointer',
+                                }}
+                            >
+                                <Tooltip
+                                    placement="top"
+                                    title={item?.description}
                                 >
-                                    {label}
-                                </div>
-                            </div>
-                        </div>
+                                    <QuestionCircleOutlined />
+                                </Tooltip>
+                            </Flex>
+
+                            <InputType item={item} />
+                            {provided.placeholder}
+                        </Card>
                     )}
-                </Draggable>
-            </div>
-            <div>
-                <div
-                    style={{
-                        widows: '100px',
-                        position: 'absolute',
-                        top: 7,
-                        right: '50%',
-                        transform: 'translate(50%, 50%)',
-                        display: 'flex',
-                        justifyContent: 'center',
-                        alignContent: 'center',
-                        userSelect: 'none',
-                    }}
-                >
-                    <Flex
-                        style={{ position: 'absolute', left: '-50px', top: 2 }}
-                    >
-                        <Tooltip placement="top" title={'d'}>
-                            <QuestionCircleOutlined />
-                        </Tooltip>
-                    </Flex>
-                    <Flex style={{ position: 'relative' }}>{label}</Flex>
-                </div>
-            </div>
-        </div>
+                </Droppable>
+            ))}
+        </Flex>
     )
 }
 
-const SelectedField = ({ item, index, onEditField, onDeleteField }) => {
+const InputType = ({ item }) => {
     return (
-        <Draggable key={item.id} draggableId={item.name} index={index}>
+        <Draggable key={item.id} draggableId={item.id} index={item.index}>
             {(provided, snapshot) => (
                 <div
                     ref={provided.innerRef}
                     {...provided.draggableProps}
-                    style={getItemStyle(
-                        snapshot.isDragging,
-                        provided.draggableProps.style
+                    {...provided.dragHandleProps}
+                    style={{
+                        userSelect: 'none',
+                        background: snapshot.isDragging
+                            ? 'rgb(138, 208, 255)'
+                            : 'transparent',
+                        color: snapshot.isDragging ? 'black' : 'black',
+                        width: 250,
+                        height: 54,
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        borderRadius: 5,
+                        ...provided.draggableProps.style,
+                    }}
+                >
+                    {snapshot.isDragging ? (
+                        <Flex
+                            style={{
+                                position: 'absolute',
+                                top: '50%',
+                                left: '50%',
+                                transform: 'translate(-50%, -50%)',
+                            }}
+                        >
+                            {item.label}
+                        </Flex>
+                    ) : (
+                        <Flex
+                            style={{
+                                position: 'absolute',
+                                top: '50%',
+                                left: '10%',
+                                transform: 'translate(-50%, -50%)',
+                                cursor: 'pointer',
+                            }}
+                        >
+                            <Tooltip placement="top" title={item?.description}>
+                                <QuestionCircleOutlined
+                                    style={{ color: 'transparent' }}
+                                />
+                            </Tooltip>
+                        </Flex>
                     )}
+                </div>
+            )}
+        </Draggable>
+    )
+}
+
+const FieldDisplayItem = ({ item, index, ononEditField, onDeleteField }) => {
+    return (
+        <Draggable key={item.id} draggableId={item.name} index={index}>
+            {(provided, snapshot) => (
+                <Card
+                    ref={provided.innerRef}
+                    {...provided.draggableProps}
+                    style={{
+                        userSelect: 'none',
+                        borderRadius: '5px',
+                        margin: '5px 0',
+                        width: '100%',
+                        background: snapshot.isDragging
+                            ? 'rgb(138, 208, 255)'
+                            : 'white',
+                        color: snapshot.isDragging ? 'black' : 'black',
+                        ...provided.draggableProps.style,
+                    }}
                 >
                     <Row
                         gutter={24}
@@ -421,7 +462,7 @@ const SelectedField = ({ item, index, onEditField, onDeleteField }) => {
                             <Flex gap={5}>
                                 <Button
                                     onClick={() => {
-                                        onEditField(item)
+                                        ononEditField(item)
                                     }}
                                     icon={<EditOutlined />}
                                     shape="circle"
@@ -445,49 +486,53 @@ const SelectedField = ({ item, index, onEditField, onDeleteField }) => {
                                 height: '100%',
                             }}
                         >
-                            <div
-                                // style={{ background: 'red' }}
-                                {...provided.dragHandleProps}
-                            >
+                            <div {...provided.dragHandleProps}>
                                 <HolderOutlined />
                             </div>
                         </Col>
                     </Row>
-                </div>
+                </Card>
             )}
         </Draggable>
     )
 }
 
-const FormBuilderModal = (props) => {
-    const selectedInput = props.selectedInputTitle
+const FormBuilderModal = ({
+    isModalOpen,
+    setIsModalOpen,
 
-    const [inputValues, setInputValues] = useState({})
+    editableFieldName,
+    setEditableFieldName,
+
+    fieldTitleInProgress,
+
+    onAddNewField,
+    onEditField,
+
+    schema,
+}) => {
+    const selectedInput = fieldTitleInProgress
+
     const [form] = Form.useForm()
     const [subType, setSubType] = useState(null)
 
     useEffect(() => {
-        if (props.editFieldName) {
-            const editItemData = props.schema.find(
-                (s) => s.name === props.editFieldName
+        if (editableFieldName) {
+            const editableFieldCurrentData = schema.find(
+                (s) => s.name === editableFieldName
             )
-            form.setFieldsValue(editItemData)
+            form.setFieldsValue(editableFieldCurrentData)
         }
-    }, [props.editFieldName])
+    }, [editableFieldName])
 
     const uniqueName = `${selectedInput}${
         subType ? '-' + subType : ''
     }-${uid()}`
 
     let fieldStruct = {
+        id: editableFieldName || uniqueName,
         type: selectedInput,
-        name: props.editFieldName || uniqueName,
-    }
-
-    const reset = () => {
-        props.setIsModalOpen(false)
-        props.setEditFieldName(null)
-        form.resetFields()
+        name: editableFieldName || uniqueName,
     }
 
     const handleOk = () => {
@@ -496,40 +541,27 @@ const FormBuilderModal = (props) => {
                 const fields = form.getFieldsValue()
                 fieldStruct = { ...fieldStruct, ...fields }
 
-                if (props.editFieldName) {
-                    props.editFieldItem(fieldStruct)
+                if (editableFieldName) {
+                    onEditField(fieldStruct)
                 } else {
-                    props.addFieldStruct(fieldStruct)
+                    onAddNewField(fieldStruct)
                 }
-
                 reset()
             })
             .catch((error) => {
-                props.setIsModalOpen(true)
+                setIsModalOpen(true)
                 console.log(error)
             })
     }
 
     const handleCancel = () => {
+        reset()
+    }
+
+    const reset = () => {
+        setIsModalOpen(false)
+        setEditableFieldName(null)
         form.resetFields()
-        props.setIsModalOpen(false)
-        props.setEditFieldName(null)
-    }
-
-    const fieldsChangeHandler = (e) => {
-        setInputValues((prev) => {
-            const newState = { ...prev }
-            newState[e.target.name] = e.target.value
-            return newState
-        })
-    }
-
-    const dateChangeHandler = (date, dateString) => {
-        setInputValues((prev) => {
-            const newState = { ...prev }
-            newState['date'] = dateString
-            return newState
-        })
     }
 
     let formChildren = null
@@ -607,7 +639,7 @@ const FormBuilderModal = (props) => {
             title={`مشخصات فیلد ${
                 selectedInput?.[0].toUpperCase() + selectedInput?.slice(1)
             }`}
-            open={props.isModalOpen}
+            open={isModalOpen}
             onOk={handleOk}
             onCancel={handleCancel}
             width={800}
@@ -630,11 +662,7 @@ const FormBuilderModal = (props) => {
                             ]}
                             valuePropName="checked"
                         >
-                            <Checkbox
-                                name="required"
-                                value={inputValues.required}
-                                onChange={fieldsChangeHandler}
-                            ></Checkbox>
+                            <Checkbox name="required"></Checkbox>
                         </Form.Item>
                     </Col>
                     <Col lg={8}>
@@ -660,11 +688,7 @@ const FormBuilderModal = (props) => {
                                 },
                             ]}
                         >
-                            <Input
-                                name="label"
-                                value={inputValues.label}
-                                onChange={fieldsChangeHandler}
-                            />
+                            <Input name="label" />
                         </Form.Item>
                     </Col>
                 </Row>
