@@ -1,0 +1,840 @@
+import React, { act, useCallback, useEffect, useReducer, useState } from 'react'
+import ReactDOM from 'react-dom'
+import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd'
+import api from '../axios-proxy'
+import InfiniteScroll from 'react-infinite-scroll-component'
+import {
+    App,
+    Col,
+    Form,
+    Input,
+    InputNumber,
+    Row,
+    Select,
+    Space,
+    Spin,
+    theme,
+} from 'antd'
+import { HolderOutlined, NumberOutlined } from '@ant-design/icons'
+import { Flex } from 'antd'
+import PropTypes from 'prop-types'
+import { uid } from 'uid'
+import debounce from 'lodash.debounce'
+import dayjs from 'dayjs'
+
+const findColumnId = (columns, index) => {
+    const columnId = columns?.find((c, i) => i === +index)?.id
+    return columnId
+}
+
+const statesGroupsLabels = {
+    activities: 'activity-states',
+    oppertunities: 'oppertunity-states',
+}
+
+const cardReducer = (state, action) => {
+    if (action.type === 'SET_COLUMNS') {
+        const sortedColumns = action.payload.sort(
+            (a, b) => a.displayOrder - b.displayOrder
+        )
+        const cards = sortedColumns.map((c) => {
+            //create cards state per every column
+            return {
+                columnId: c.id,
+                page: 1,
+                size: 0,
+                total: null,
+                items: [],
+            }
+        })
+        return { cards, columns: action.payload }
+    }
+
+    if (action.type === 'ADD_NEW_CARDS') {
+        let newState = { ...state }
+        newState.cards.forEach((columnCards, index) => {
+            if (+action.payload.columnId === +columnCards.columnId) {
+                //find the column
+                newState.cards[index] = {
+                    columnId: action.payload.columnId,
+                    ...action.payload.responseData,
+                    items: [
+                        ...(columnCards.items || []),
+                        ...(action?.payload?.responseData?.items || []),
+                    ],
+                }
+            }
+        })
+
+        return newState
+    }
+
+    if (action.type === 'MOVE_CARD') {
+        const newState = { ...state }
+
+        const {
+            cardData,
+            sourceIndex,
+            destinationIndex,
+            sourceId,
+            destinationId,
+        } = action.payload
+
+        newState.cards.forEach((columnCards, index) => {
+            if (index === +sourceId) {
+                // remove card from current column
+                columnCards.items.splice(+sourceIndex, 1)
+            }
+
+            if (index === +destinationId) {
+                // add card to target column
+                columnCards.items.splice(+destinationIndex, 0, cardData)
+            }
+        })
+
+        return newState
+    }
+
+    if (action.type === 'RESET_CARDS') {
+        const sortedColumns = state.columns.sort(
+            (a, b) => a.displayOrder - b.displayOrder
+        )
+        const cards = sortedColumns.map((c) => {
+            //create cards state per column
+            return {
+                columnId: c.id,
+                page: 1,
+                size: 0,
+                total: null,
+                items: [],
+            }
+        })
+
+        return { ...state, cards }
+    }
+}
+
+function Kanbanboard() {
+    const [state, dispatch] = useReducer(cardReducer, {
+        columns: [],
+        cards: [],
+    })
+
+    const [toolbarForm] = Form.useForm()
+    const { message } = App.useApp()
+    const [size, setSize] = useState(5)
+    const [searchQuery, setSearchQuery] = useState('')
+
+    const [selectedResource, setSelectedResource] = useState('activity-states')
+    const [columnsLoading, setColumnsLoading] = useState(false)
+
+    const fetchColumns = useCallback(() => {
+        setColumnsLoading(true)
+        api.get(`/api/${statesGroupsLabels[selectedResource]}/`)
+            .then((res) => {
+                dispatch({ type: 'SET_COLUMNS', payload: res.data })
+                setColumnsLoading(false)
+            })
+            .catch((err) => {
+                console.log(err)
+                setColumnsLoading(false)
+                message.error(APP_MESSAGE.DATA_LOADING_ERROR)
+            })
+
+    //     const timeout2 = setTimeout(() => {
+    //         dispatch({
+    //             type: 'SET_COLUMNS',
+    //             payload: [
+    //                 { id: 10, title: 'پرداخت شود', displayOrder: 1 },
+    //                 { id: 20, title: 'ارسال شود', displayOrder: 2 },
+    //                 { id: 55, title: 'انبار شود', displayOrder: 3 },
+    //                 { id: 44, title: 'فروخته شود', displayOrder: 4 },
+    //             ],
+    //         })
+    //         setColumnsLoading(false)
+    //         clearTimeout(timeout2)
+    //     }, 500)
+    }, [])
+
+    const searchInputChangeHandler = debounce((e) => {
+        setSearchQuery(e.target.value)
+        dispatch({ type: 'RESET_CARDS' })
+        // fetchColumns()
+    }, 1000)
+
+    // Loading Columns
+    useEffect(() => {
+        fetchColumns()
+    }, [fetchColumns, size, selectedResource])
+
+    function onDragEnd(result) {
+        const { source, destination } = result
+
+        if (!destination) return
+
+        const sourceColumn = state.cards.find(
+            (c, index) => index === +source.droppableId
+        )
+
+        const cardData = sourceColumn?.items[source.index]
+
+        const destinationId = findColumnId(
+            state.columns,
+            destination?.droppableId
+        )
+
+        api.patch(
+            `api/${statesGroupsLabels[selectedResource]}/${cardData.id}`,
+            {
+                stateId: destinationId,
+            }
+        )
+            .then((res) => {
+                dispatch({
+                    type: 'MOVE_CARD',
+                    payload: {
+                        cardData,
+                        sourceIndex: source?.index,
+                        destinationIndex: destination?.index,
+                        sourceId: +source?.droppableId,
+                        destinationId: +destination?.droppableId,
+                    },
+                })
+            })
+            .catch((err) => {
+                console.log(err)
+                message.error(APP_MESSAGE.DATA_LOADING_ERROR)
+            })
+
+        // dispatch({
+        //     type: 'MOVE_CARD',
+        //     payload: {
+        //         cardData,
+        //         sourceIndex: source?.index,
+        //         destinationIndex: destination?.index,
+        //         sourceId: source?.droppableId,
+        //         destinationId: destination?.droppableId,
+        //     },
+        // })
+    }
+
+    const resourceSelectChangeHandler = (value) => {
+        setSelectedResource(value)
+        // fetchColumns()
+    }
+
+    const sizeChangeHandler = (sizeValue) => {
+        setSize(sizeValue)
+        // fetchColumns()
+    }
+
+    return (
+        <div style={{ overflow: 'hidden', height: '100%' }}>
+            {columnsLoading ? (
+                <Flex
+                    style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        height: '100%',
+                    }}
+                >
+                    <Spin size="large" />
+                </Flex>
+            ) : (
+                <div
+                    style={{
+                        display: 'flex',
+                        justifyContent: 'center',
+                        flexDirection: 'column',
+                        overflowX: 'auto',
+                        width: '100%',
+                        // height: '100%',
+                        position: 'relative',
+                    }}
+                >
+                    <DragDropContext
+                        onDragEnd={onDragEnd}
+                        onDragStart={ondragstart}
+                    >
+                        <div style={{ width: '95%' }}>
+                            <div>
+                                <ToolBar
+                                    form={toolbarForm}
+                                    size={size}
+                                    onSizeChange={sizeChangeHandler}
+                                    setSelectedResource={setSelectedResource}
+                                    onsearchInputChange={
+                                        searchInputChangeHandler
+                                    }
+                                    onResourceSelectChange={
+                                        resourceSelectChangeHandler
+                                    }
+                                />
+                            </div>
+                        </div>
+
+                        <DroppableColumn
+                            state={state}
+                            dispatch={dispatch}
+                            selectedResource={selectedResource}
+                            size={size}
+                            searchQuery={searchQuery}
+                        />
+                    </DragDropContext>
+                </div>
+            )}
+        </div>
+    )
+}
+
+export default Kanbanboard
+
+const DroppableColumn = ({
+    state,
+    dispatch,
+    selectedResource,
+    size,
+    searchQuery,
+}) => {
+    return (
+        <div>
+            <div
+                style={{
+                    display: 'flex',
+                    flexDirection: 'row',
+                }}
+            >
+                {state.columns.map((c, ind) => (
+                    <Droppable key={ind} droppableId={`${ind}`}>
+                        {(provided, snapshot) => {
+                            const cards = state.cards[ind]
+
+                            return (
+                                <div
+                                    className="container"
+                                    style={{
+                                        margin: '.5rem',
+                                        flex: '1 1 auto',
+                                    }}
+                                >
+                                    <div
+                                        style={{
+                                            display: 'flex',
+                                            justifyContent: 'center',
+                                            top: '3rem',
+                                            width: '100%',
+                                            position: 'sticky',
+                                            backgroundColor:
+                                                'rgb(165, 165, 165)',
+                                            padding: '.3rem 0',
+                                            color: 'white',
+                                        }}
+                                    >
+                                        {c.title}
+                                    </div>
+                                    <Column
+                                        provided={provided}
+                                        style={{
+                                            background: snapshot.isDraggingOver
+                                                ? 'lightblue'
+                                                : 'lightgrey',
+                                            padding: 8,
+                                            width: '100%',
+                                        }}
+                                        cards={cards}
+                                        dispatch={dispatch}
+                                        selectedResource={selectedResource}
+                                        size={size}
+                                        state={state}
+                                        searchQuery={searchQuery}
+                                    />
+                                </div>
+                            )
+                        }}
+                    </Droppable>
+                ))}
+            </div>
+        </div>
+    )
+}
+
+DroppableColumn.propTypes = {
+    state: PropTypes.object,
+    dispatch: PropTypes.func,
+    selectedResource: PropTypes.string,
+    size: PropTypes.number,
+    searchQuery: PropTypes.string,
+}
+
+const Column = ({
+    provided,
+    style,
+    cards,
+    dispatch,
+    size,
+    state,
+    selectedResource,
+    searchQuery,
+}) => {
+    const id = cards?.columnId
+
+    const { message } = App.useApp()
+
+    const fetchCards = useCallback(
+        (colId, page, size) => {
+            api.get(
+                `/api/${selectedResource}/${size}/${page}/?stateIdEquals=${id}&search=${searchQuery}`
+            )
+                .then((res) => {
+                    dispatch({
+                        type: 'ADD_NEW_CARDS',
+                        payload: { columnId: colId, responseData: res.data },
+                    })
+                })
+                .catch((err) => {
+                    console.log(err)
+                    message.error(APP_MESSAGE.DATA_LOADING_ERROR)
+                })
+
+            // const data = [
+            //     {
+            //         page: 1,
+            //         total: 12,
+            //         size: 3,
+            //         number: uid(),
+            //         items: [
+            //             {
+            //                 id: uid(),
+            //                 title: 'card 1',
+            //                 number: uid(),
+            //                 description: 'این یک توضیح است.',
+            //                 createDate: '1403/3/3',
+            //             },
+            //             {
+            //                 id: uid(),
+            //                 title: 'card 2',
+            //                 number: uid(),
+            //                 description: 'این یک توضیح است.',
+            //                 createDate: '1403/3/3',
+            //             },
+            //             {
+            //                 id: uid(),
+            //                 title: 'card 3',
+            //                 number: uid(),
+            //                 description: 'این یک توضیح است.',
+            //                 createDate: '1403/3/3',
+            //             },
+            //         ],
+            //     },
+
+            //     {
+            //         page: 2,
+            //         total: 12,
+            //         size: 3,
+            //         number: uid(),
+            //         items: [
+            //             {
+            //                 id: uid(),
+            //                 title: 'card 1',
+            //                 number: uid(),
+            //                 description: 'این یک توضیح است.',
+            //                 createDate: '1403/3/3',
+            //             },
+            //             {
+            //                 id: uid(),
+            //                 title: 'card 2',
+            //                 number: uid(),
+            //                 description: 'این یک توضیح است.',
+            //                 createDate: '1403/3/3',
+            //             },
+            //             {
+            //                 id: uid(),
+            //                 title: 'card 3',
+            //                 number: uid(),
+            //                 description: 'این یک توضیح است.',
+            //                 createDate: '1403/3/3',
+            //             },
+            //         ],
+            //     },
+
+            //     {
+            //         page: 3,
+            //         total: 12,
+            //         size: 3,
+            //         number: uid(),
+            //         items: [
+            //             {
+            //                 id: uid(),
+            //                 title: 'card 1',
+            //                 number: uid(),
+            //                 description: 'این یک توضیح است.',
+            //                 createDate: '1403/3/3',
+            //             },
+            //             {
+            //                 id: uid(),
+            //                 title: 'card 2',
+            //                 number: uid(),
+            //                 description: 'این یک توضیح است.',
+            //                 createDate: '1403/3/3',
+            //             },
+            //             {
+            //                 id: uid(),
+            //                 title: 'card 3',
+            //                 number: uid(),
+            //                 description: 'این یک توضیح است.',
+            //                 createDate: '1403/3/3',
+            //             },
+            //         ],
+            //     },
+
+            //     {
+            //         page: 4,
+            //         total: 12,
+            //         size: 3,
+            //         number: uid(),
+            //         items: [
+            //             {
+            //                 id: uid(),
+            //                 title: 'card 1',
+            //                 number: uid(),
+            //                 description: 'این یک توضیح است.',
+            //                 createDate: '1403/3/3',
+            //             },
+            //             {
+            //                 id: uid(),
+            //                 title: 'card 2',
+            //                 number: uid(),
+            //                 description: 'این یک توضیح است.',
+            //                 createDate: '1403/3/3',
+            //             },
+            //             {
+            //                 id: uid(),
+            //                 title: 'card 3',
+            //                 number: uid(),
+            //                 description: 'این یک توضیح است.',
+            //                 createDate: '1403/3/3',
+            //             },
+            //         ],
+            //     },
+            // ]
+
+            // const timeout = setTimeout(() => {
+            //     dispatch({
+            //         type: 'ADD_NEW_CARDS',
+            //         payload: { columnId: colId, responseData: data[page - 1] },
+            //     })
+            //     clearTimeout(timeout)
+            // }, 500)
+        },
+        [id, dispatch, message, selectedResource, searchQuery]
+    )
+
+    useEffect(() => {
+        fetchCards(id, 1, 5)
+    }, [state.columns, fetchCards, id])
+
+    return (
+        <div
+            ref={provided.innerRef}
+            style={{ ...style, background: 'white', width: '100%' }}
+            {...provided.droppableProps}
+        >
+            <InfiniteScroll
+                height={'30rem'}
+                width={'100%'}
+                style={{
+                    display: 'flex',
+                    flex: '1 1 auto',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    padding: '.5rem 1rem',
+                }}
+                dataLength={cards?.items?.length || 0}
+                next={() => {
+                    fetchCards(id, cards?.page + 1, size)
+                }}
+                hasMore={cards?.total > cards?.size * cards?.page}
+                loader={null}
+                endMessage={null}
+                scrollableTarget="scrollableDiv"
+            >
+                {cards?.items.length !== 0 ? (
+                    cards?.items.map((item, index) => (
+                        <Draggable
+                            key={item.id}
+                            draggableId={`${item?.id}`}
+                            index={index}
+                        >
+                            {(provided, snapshot) => (
+                                <Card
+                                    item={item}
+                                    provided={provided}
+                                    style={{
+                                        userSelect: 'none',
+                                        padding: 16,
+                                        margin: `0 0 8px 0`,
+                                        background: snapshot.isDragging
+                                            ? 'lightgreen'
+                                            : 'grey',
+
+                                        ...provided.draggableProps.style,
+                                    }}
+                                />
+                            )}
+                        </Draggable>
+                    ))
+                ) : (
+                    <Space>آیتمی در این ستون قرار ندارد.</Space>
+                )}
+                {provided.placeholder}
+            </InfiniteScroll>
+        </div>
+    )
+}
+
+Column.propTypes = {
+    provided: PropTypes.object,
+    style: PropTypes.object,
+    cards: PropTypes.object,
+    dispatch: PropTypes.func,
+    selectedResource: PropTypes.string,
+    size: PropTypes.number,
+    state: PropTypes.object,
+    searchQuery: PropTypes.string,
+}
+
+function Card(props) {
+    const { item } = props
+    const { token } = theme.useToken()
+
+    const { provided } = props
+
+    return (
+        <div
+            style={props.style}
+            ref={provided.innerRef}
+            {...provided.draggableProps}
+        >
+            <div
+                style={{
+                    userSelect: 'none',
+                    minWidth: '250px',
+                    minHeight: 130,
+                    margin: '5px 0px',
+                    padding: '5px 10px',
+                    borderRadius: token.borderRadius,
+                    backgroundColor: token.colorBgContainer,
+                    border: `1px solid ${token.colorBorderSecondary}`,
+                    boxShadow: token.boxShadow,
+                }}
+            >
+                <Row
+                    gutter={24}
+                    style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                    }}
+                >
+                    <Col
+                        xs={15}
+                        style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                        }}
+                    >
+                        <div style={{ fontSize: '12px' }}>
+                            <NumberOutlined />
+                            <span>{item?.number}</span>
+                        </div>
+                    </Col>
+
+                    <Col lg={3}>
+                        <div
+                            {...provided.dragHandleProps}
+                            style={{ width: 10, cursor: 'move' }}
+                        >
+                            <HolderOutlined style={{ fontSize: 15 }} />
+                        </div>
+                    </Col>
+                </Row>
+                <Row gutter={24} style={{ padding: '.5rem 1rem' }}>
+                    <Col lg={13} style={{ padding: '0' }}>
+                        <div>
+                            <span style={{ fontSize: '10px' }}>عنوان: </span>
+                            <span style={{ fontSize: '10px' }}>
+                                {item.title}
+                            </span>
+                        </div>
+                    </Col>
+                </Row>
+
+                <Row
+                    gutter={24}
+                    style={{ marginBottom: '.5rem', padding: '0' }}
+                >
+                    <Col xs={24}>
+                        <div>
+                            <span
+                                style={{
+                                    fontSize: '10px',
+                                    marginLeft: '1rem',
+                                }}
+                            >
+                                توضیحات:
+                            </span>
+                            <div
+                                style={{
+                                    fontSize: '10px',
+                                    width: '240px',
+                                    textAlign: 'justify',
+                                    wordWrap: ' break-word',
+                                }}
+                            >
+                                {item.description}
+                            </div>
+                        </div>
+                    </Col>
+                </Row>
+
+                <footer>
+                    <dl
+                        style={{
+                            display: 'flex',
+                            justifyContent: 'end',
+                            padding: '0 1rem 0 0',
+                        }}
+                    >
+                        <div style={{ margin: '0rem 0' }}>
+                            <div style={{ fontSize: '10px' }}>
+                                <span>تاریخ ایجاد:</span>{' '}
+                                <span style={{ fontSize: '10px' }}>
+                                    {dayjs(item.createDate).format(
+                                        'YYYY-MM-DD'
+                                    )}
+                                </span>
+                            </div>
+                        </div>
+                    </dl>
+                </footer>
+            </div>
+        </div>
+    )
+}
+
+Card.propTypes = {
+    item: PropTypes.object,
+    provided: PropTypes.object,
+    style: PropTypes.object,
+}
+
+const ToolBar = ({
+    form,
+    size,
+    onSizeChange,
+    onsearchInputChange,
+    onResourceSelectChange,
+}) => {
+    const resoursesList = [
+        {
+            value: 'activities',
+            label: 'فعالیت',
+        },
+        {
+            value: 'oppertunities',
+            label: 'فرصت',
+        },
+        // {
+        //     value: 'leads',
+        //     label: 'سرنخ',
+        // },
+        // {
+        //     value: 'accounts',
+        //     label: 'حساب',
+        // },
+
+        // {
+        //     value: 'tickets',
+        //     label: 'تیکت',
+        // },
+        // {
+        //     value: 'projects',
+        //     label: 'پروژه',
+        // },
+        // {
+        //     value: 'icvoices',
+        //     label: 'فاکتور',
+        // },
+        // {
+        //     value: 'payments',
+        //     label: 'پرداخت',
+        // },
+    ]
+
+    return (
+        <>
+            <Form
+                form={form}
+                style={{
+                    position: 'sticky',
+                    top: '0',
+                    padding: '0.5rem 0.5rem',
+                    background: 'white',
+                    height: 'fit-content',
+                    width: '100%',
+                }}
+            >
+                <Row
+                    style={{ display: 'flex', alignItems: 'center' }}
+                    gutter={24}
+                >
+                    <Col xs={24} lg={8}>
+                        <Form.Item
+                            initialValue={'activities'}
+                            style={{ height: 'fit-content', margin: '0' }}
+                            name="resource"
+                            label={`منبع`}
+                        >
+                            <Select
+                                style={{ width: '100' }}
+                                options={resoursesList}
+                                onChange={onResourceSelectChange}
+                            />
+                        </Form.Item>
+                    </Col>
+
+                    <Col xs={24} lg={8}>
+                        <Form.Item
+                            name="search-query"
+                            label={`جستجو`}
+                            style={{ height: 'fit-content', margin: '0' }}
+                        >
+                            <Input onChange={onsearchInputChange} />
+                        </Form.Item>
+                    </Col>
+
+                    <Col xs={24} lg={8}>
+                        <Form.Item
+                            initialValue={size}
+                            name="size"
+                            label={`اندازه`}
+                            style={{ height: 'fit-content', margin: '0' }}
+                        >
+                            <InputNumber onChange={onSizeChange} value={size} />
+                        </Form.Item>
+                    </Col>
+                </Row>
+            </Form>
+        </>
+    )
+}
+
+ToolBar.propTypes = {
+    form: PropTypes.object,
+    size: PropTypes.number,
+    onSizeChange: PropTypes.func,
+    setSelectedResource: PropTypes.func,
+    onsearchInputChange: PropTypes.func,
+    onResourceSelectChange: PropTypes.func,
+}
