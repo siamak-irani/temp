@@ -21,6 +21,8 @@ import PropTypes from 'prop-types'
 import { uid } from 'uid'
 import debounce from 'lodash.debounce'
 import dayjs from 'dayjs'
+import APP_MESSAGE from '../app-message'
+
 
 const findColumnId = (columns, index) => {
     const columnId = columns?.find((c, i) => i === +index)?.id
@@ -130,30 +132,30 @@ function Kanbanboard() {
 
     const fetchColumns = useCallback(() => {
         setColumnsLoading(true)
-        api.get(`/api/${statesGroupsLabels[selectedResource]}/`)
-            .then((res) => {
-                dispatch({ type: 'SET_COLUMNS', payload: res.data })
-                setColumnsLoading(false)
-            })
-            .catch((err) => {
-                console.log(err)
-                setColumnsLoading(false)
-                message.error(APP_MESSAGE.DATA_LOADING_ERROR)
-            })
+        // api.get(`/api/${statesGroupsLabels[selectedResource]}/`)
+        //     .then((res) => {
+        //         dispatch({ type: 'SET_COLUMNS', payload: res.data })
+        //         setColumnsLoading(false)
+        //     })
+        //     .catch((err) => {
+        //         console.log(err)
+        //         setColumnsLoading(false)
+        //         message.error(APP_MESSAGE.DATA_LOADING_ERROR)
+        //     })
 
-    //     const timeout2 = setTimeout(() => {
-    //         dispatch({
-    //             type: 'SET_COLUMNS',
-    //             payload: [
-    //                 { id: 10, title: 'پرداخت شود', displayOrder: 1 },
-    //                 { id: 20, title: 'ارسال شود', displayOrder: 2 },
-    //                 { id: 55, title: 'انبار شود', displayOrder: 3 },
-    //                 { id: 44, title: 'فروخته شود', displayOrder: 4 },
-    //             ],
-    //         })
-    //         setColumnsLoading(false)
-    //         clearTimeout(timeout2)
-    //     }, 500)
+        const timeout2 = setTimeout(() => {
+            dispatch({
+                type: 'SET_COLUMNS',
+                payload: [
+                    { id: 10, title: 'پرداخت شود', displayOrder: 1 },
+                    { id: 20, title: 'ارسال شود', displayOrder: 2 },
+                    { id: 55, title: 'انبار شود', displayOrder: 3 },
+                    { id: 44, title: 'فروخته شود', displayOrder: 4 },
+                ],
+            })
+            setColumnsLoading(false)
+            clearTimeout(timeout2)
+        }, 500)
     }, [])
 
     const searchInputChangeHandler = debounce((e) => {
@@ -183,39 +185,39 @@ function Kanbanboard() {
             destination?.droppableId
         )
 
-        api.patch(
-            `api/${statesGroupsLabels[selectedResource]}/${cardData.id}`,
-            {
-                stateId: destinationId,
-            }
-        )
-            .then((res) => {
-                dispatch({
-                    type: 'MOVE_CARD',
-                    payload: {
-                        cardData,
-                        sourceIndex: source?.index,
-                        destinationIndex: destination?.index,
-                        sourceId: +source?.droppableId,
-                        destinationId: +destination?.droppableId,
-                    },
-                })
-            })
-            .catch((err) => {
-                console.log(err)
-                message.error(APP_MESSAGE.DATA_LOADING_ERROR)
-            })
+        // api.patch(
+        //     `api/${statesGroupsLabels[selectedResource]}/${cardData.id}`,
+        //     {
+        //         stateId: destinationId,
+        //     }
+        // )
+        //     .then((res) => {
+        //         dispatch({
+        //             type: 'MOVE_CARD',
+        //             payload: {
+        //                 cardData,
+        //                 sourceIndex: source?.index,
+        //                 destinationIndex: destination?.index,
+        //                 sourceId: +source?.droppableId,
+        //                 destinationId: +destination?.droppableId,
+        //             },
+        //         })
+        //     })
+        //     .catch((err) => {
+        //         console.log(err)
+        //         message.error(APP_MESSAGE.DATA_LOADING_ERROR)
+        //     })
 
-        // dispatch({
-        //     type: 'MOVE_CARD',
-        //     payload: {
-        //         cardData,
-        //         sourceIndex: source?.index,
-        //         destinationIndex: destination?.index,
-        //         sourceId: source?.droppableId,
-        //         destinationId: destination?.droppableId,
-        //     },
-        // })
+        dispatch({
+            type: 'MOVE_CARD',
+            payload: {
+                cardData,
+                sourceIndex: source?.index,
+                destinationIndex: destination?.index,
+                sourceId: source?.droppableId,
+                destinationId: destination?.droppableId,
+            },
+        })
     }
 
     const resourceSelectChangeHandler = (value) => {
@@ -383,149 +385,149 @@ const Column = ({
 
     const fetchCards = useCallback(
         (colId, page, size) => {
-            api.get(
-                `/api/${selectedResource}/${size}/${page}/?stateIdEquals=${id}&search=${searchQuery}`
-            )
-                .then((res) => {
-                    dispatch({
-                        type: 'ADD_NEW_CARDS',
-                        payload: { columnId: colId, responseData: res.data },
-                    })
-                })
-                .catch((err) => {
-                    console.log(err)
-                    message.error(APP_MESSAGE.DATA_LOADING_ERROR)
-                })
-
-            // const data = [
-            //     {
-            //         page: 1,
-            //         total: 12,
-            //         size: 3,
-            //         number: uid(),
-            //         items: [
-            //             {
-            //                 id: uid(),
-            //                 title: 'card 1',
-            //                 number: uid(),
-            //                 description: 'این یک توضیح است.',
-            //                 createDate: '1403/3/3',
-            //             },
-            //             {
-            //                 id: uid(),
-            //                 title: 'card 2',
-            //                 number: uid(),
-            //                 description: 'این یک توضیح است.',
-            //                 createDate: '1403/3/3',
-            //             },
-            //             {
-            //                 id: uid(),
-            //                 title: 'card 3',
-            //                 number: uid(),
-            //                 description: 'این یک توضیح است.',
-            //                 createDate: '1403/3/3',
-            //             },
-            //         ],
-            //     },
-
-            //     {
-            //         page: 2,
-            //         total: 12,
-            //         size: 3,
-            //         number: uid(),
-            //         items: [
-            //             {
-            //                 id: uid(),
-            //                 title: 'card 1',
-            //                 number: uid(),
-            //                 description: 'این یک توضیح است.',
-            //                 createDate: '1403/3/3',
-            //             },
-            //             {
-            //                 id: uid(),
-            //                 title: 'card 2',
-            //                 number: uid(),
-            //                 description: 'این یک توضیح است.',
-            //                 createDate: '1403/3/3',
-            //             },
-            //             {
-            //                 id: uid(),
-            //                 title: 'card 3',
-            //                 number: uid(),
-            //                 description: 'این یک توضیح است.',
-            //                 createDate: '1403/3/3',
-            //             },
-            //         ],
-            //     },
-
-            //     {
-            //         page: 3,
-            //         total: 12,
-            //         size: 3,
-            //         number: uid(),
-            //         items: [
-            //             {
-            //                 id: uid(),
-            //                 title: 'card 1',
-            //                 number: uid(),
-            //                 description: 'این یک توضیح است.',
-            //                 createDate: '1403/3/3',
-            //             },
-            //             {
-            //                 id: uid(),
-            //                 title: 'card 2',
-            //                 number: uid(),
-            //                 description: 'این یک توضیح است.',
-            //                 createDate: '1403/3/3',
-            //             },
-            //             {
-            //                 id: uid(),
-            //                 title: 'card 3',
-            //                 number: uid(),
-            //                 description: 'این یک توضیح است.',
-            //                 createDate: '1403/3/3',
-            //             },
-            //         ],
-            //     },
-
-            //     {
-            //         page: 4,
-            //         total: 12,
-            //         size: 3,
-            //         number: uid(),
-            //         items: [
-            //             {
-            //                 id: uid(),
-            //                 title: 'card 1',
-            //                 number: uid(),
-            //                 description: 'این یک توضیح است.',
-            //                 createDate: '1403/3/3',
-            //             },
-            //             {
-            //                 id: uid(),
-            //                 title: 'card 2',
-            //                 number: uid(),
-            //                 description: 'این یک توضیح است.',
-            //                 createDate: '1403/3/3',
-            //             },
-            //             {
-            //                 id: uid(),
-            //                 title: 'card 3',
-            //                 number: uid(),
-            //                 description: 'این یک توضیح است.',
-            //                 createDate: '1403/3/3',
-            //             },
-            //         ],
-            //     },
-            // ]
-
-            // const timeout = setTimeout(() => {
-            //     dispatch({
-            //         type: 'ADD_NEW_CARDS',
-            //         payload: { columnId: colId, responseData: data[page - 1] },
+            // api.get(
+            //     `/api/${selectedResource}/${size}/${page}/?stateIdEquals=${id}&search=${searchQuery}`
+            // )
+            //     .then((res) => {
+            //         dispatch({
+            //             type: 'ADD_NEW_CARDS',
+            //             payload: { columnId: colId, responseData: res.data },
+            //         })
             //     })
-            //     clearTimeout(timeout)
-            // }, 500)
+            //     .catch((err) => {
+            //         console.log(err)
+            //         message.error(APP_MESSAGE.DATA_LOADING_ERROR)
+            //     })
+
+            const data = [
+                {
+                    page: 1,
+                    total: 12,
+                    size: 3,
+                    number: uid(),
+                    items: [
+                        {
+                            id: uid(),
+                            title: 'card 1',
+                            number: uid(),
+                            description: 'این یک توضیح است.',
+                            createDate: '1403/3/3',
+                        },
+                        {
+                            id: uid(),
+                            title: 'card 2',
+                            number: uid(),
+                            description: 'این یک توضیح است.',
+                            createDate: '1403/3/3',
+                        },
+                        {
+                            id: uid(),
+                            title: 'card 3',
+                            number: uid(),
+                            description: 'این یک توضیح است.',
+                            createDate: '1403/3/3',
+                        },
+                    ],
+                },
+
+                {
+                    page: 2,
+                    total: 12,
+                    size: 3,
+                    number: uid(),
+                    items: [
+                        {
+                            id: uid(),
+                            title: 'card 1',
+                            number: uid(),
+                            description: 'این یک توضیح است.',
+                            createDate: '1403/3/3',
+                        },
+                        {
+                            id: uid(),
+                            title: 'card 2',
+                            number: uid(),
+                            description: 'این یک توضیح است.',
+                            createDate: '1403/3/3',
+                        },
+                        {
+                            id: uid(),
+                            title: 'card 3',
+                            number: uid(),
+                            description: 'این یک توضیح است.',
+                            createDate: '1403/3/3',
+                        },
+                    ],
+                },
+
+                {
+                    page: 3,
+                    total: 12,
+                    size: 3,
+                    number: uid(),
+                    items: [
+                        {
+                            id: uid(),
+                            title: 'card 1',
+                            number: uid(),
+                            description: 'این یک توضیح است.',
+                            createDate: '1403/3/3',
+                        },
+                        {
+                            id: uid(),
+                            title: 'card 2',
+                            number: uid(),
+                            description: 'این یک توضیح است.',
+                            createDate: '1403/3/3',
+                        },
+                        {
+                            id: uid(),
+                            title: 'card 3',
+                            number: uid(),
+                            description: 'این یک توضیح است.',
+                            createDate: '1403/3/3',
+                        },
+                    ],
+                },
+
+                {
+                    page: 4,
+                    total: 12,
+                    size: 3,
+                    number: uid(),
+                    items: [
+                        {
+                            id: uid(),
+                            title: 'card 1',
+                            number: uid(),
+                            description: 'این یک توضیح است.',
+                            createDate: '1403/3/3',
+                        },
+                        {
+                            id: uid(),
+                            title: 'card 2',
+                            number: uid(),
+                            description: 'این یک توضیح است.',
+                            createDate: '1403/3/3',
+                        },
+                        {
+                            id: uid(),
+                            title: 'card 3',
+                            number: uid(),
+                            description: 'این یک توضیح است.',
+                            createDate: '1403/3/3',
+                        },
+                    ],
+                },
+            ]
+
+            const timeout = setTimeout(() => {
+                dispatch({
+                    type: 'ADD_NEW_CARDS',
+                    payload: { columnId: colId, responseData: data[page - 1] },
+                })
+                clearTimeout(timeout)
+            }, 500)
         },
         [id, dispatch, message, selectedResource, searchQuery]
     )
