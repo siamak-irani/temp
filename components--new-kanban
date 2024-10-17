@@ -1,0 +1,111 @@
+import {
+    closestCorners,
+    DndContext,
+    DragOverlay,
+    KeyboardSensor,
+    PointerSensor,
+    useSensor,
+    useSensors,
+} from '@dnd-kit/core'
+import { arrayMove, sortableKeyboardCoordinates } from '@dnd-kit/sortable'
+import { useContext, useState } from 'react'
+import { SortableContext, rectSortingStrategy } from '@dnd-kit/sortable'
+import { useDroppable } from '@dnd-kit/core'
+import { CSS } from '@dnd-kit/utilities'
+import { useSortable } from '@dnd-kit/sortable'
+import PropTypes from 'prop-types'
+import { KanbanContext } from './kanban-test'
+import { theme } from 'antd'
+import InfiniteScroll from 'react-infinite-scroll-component'
+
+export const Column = ({ id, title, cards }) => {
+    const {
+        token: { colorBgLayout },
+    } = theme.useToken()
+
+    const { activeId } = useContext(KanbanContext)
+
+    const { setNodeRef } = useDroppable({ id: id })
+    return (
+        <div>
+            <SortableContext
+                id={id}
+                items={cards}
+                strategy={rectSortingStrategy}
+            >
+                <div
+                    id={`div-${id}`}
+                    ref={setNodeRef}
+                    style={{
+                        width: '200px',
+                        background: colorBgLayout,
+                        marginRight: '10px',
+                        height: '400px',
+                        overflowY: 'auto',
+                        overflowX: 'hidden',
+                    }}
+                >
+                    <div
+                        style={{
+                            background: 'white',
+                            border: '1px solid black',
+                            fontSize: '12px',
+                        }}
+                    >
+                        {title}
+                    </div>
+                    <InfiniteScroll
+                        dataLength={100}
+                        scrollableTarget={`div-${id}`}
+                        // style={{ overflowY: 'auto', overflowX: 'hidden' }}
+                    >
+                        {cards.map((card) => (
+                            <Card
+                                key={card.id}
+                                id={card.id}
+                                title={card.title}
+                            ></Card>
+                        ))}
+                    </InfiniteScroll>
+                    <DragOverlay>
+                        {activeId ? <div>hello</div> : null}
+                    </DragOverlay>
+                </div>
+            </SortableContext>
+        </div>
+    )
+}
+
+Column.propTypes = {
+    id: PropTypes.string,
+    title: PropTypes.string,
+    cards: PropTypes.array,
+}
+
+export const Card = ({ id, title }) => {
+    const { attributes, listeners, setNodeRef, transform } = useSortable({
+        id: id,
+    })
+
+    const style = {
+        margin: '10px',
+        opacity: 1,
+        color: '#333',
+        background: 'white',
+        padding: '10px',
+        transform: CSS.Transform.toString(transform),
+    }
+
+    const { CardComponent } = useContext(KanbanContext)
+
+    return (
+        <div ref={setNodeRef} {...attributes} {...listeners} style={style}>
+            <CardComponent />
+        </div>
+    )
+}
+
+Card.propTypes = {
+    id: PropTypes.string,
+    title: PropTypes.string,
+}
