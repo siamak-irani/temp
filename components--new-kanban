@@ -8,29 +8,67 @@ import {
     useSensors,
 } from '@dnd-kit/core'
 import { arrayMove, sortableKeyboardCoordinates } from '@dnd-kit/sortable'
-import { useContext, useState } from 'react'
+import { useCallback, useContext, useEffect, useState } from 'react'
 import { SortableContext, rectSortingStrategy } from '@dnd-kit/sortable'
 import { useDroppable } from '@dnd-kit/core'
 import { CSS } from '@dnd-kit/utilities'
 import { useSortable } from '@dnd-kit/sortable'
 import PropTypes from 'prop-types'
-import { KanbanContext } from './kanban-test'
+import { KanbanContext } from './NewKanban'
 import { theme } from 'antd'
 import InfiniteScroll from 'react-infinite-scroll-component'
+import { uid } from 'uid'
 
-export const Column = ({ id, title, cards }) => {
+export const Column = ({ id, title, fetchCards, c, cards }) => {
+    const [pageState, setPageState] = useState(1)
     const {
         token: { colorBgLayout },
     } = theme.useToken()
 
-    const { activeId } = useContext(KanbanContext)
+    const { state, setState, activeId } = useContext(KanbanContext)
 
-    const { setNodeRef } = useDroppable({ id: id })
+    const [pagginationData, setPagginationData] = useState({
+        page: 1,
+        size: null,
+        total: null,
+    })
+
+    const getCards = useCallback(async () => {
+        const { total, size, page, items } = await fetchCards(id, pageState)
+        setPagginationData({ total, size, page })
+        setState((prev) => {
+            const newState = [...prev]
+            const currentColumn = newState.find((item) => item.id === id)
+            currentColumn.cards = [
+                ...(currentColumn.cards || []),
+                ...(items || []),
+            ]
+            return newState
+        })
+    }, [])
+
+    useEffect(() => {
+        getCards()
+    }, [])
+
+    const { setNodeRef } = useDroppable({ id })
+
+    useEffect(() => {
+        // console.log(currentColumn.cards)
+        // console.log(state.find((item) => item.id === id))
+        // console.log(id)
+    }, [state])
+
+    useEffect(() => {
+        // console.log(state)
+        // console.log(pageState)
+    }, [state])
+
     return (
         <div>
             <SortableContext
                 id={id}
-                items={cards}
+                items={cards || []}
                 strategy={rectSortingStrategy}
             >
                 <div
@@ -43,6 +81,7 @@ export const Column = ({ id, title, cards }) => {
                         height: '400px',
                         overflowY: 'auto',
                         overflowX: 'hidden',
+                        height: '300px',
                     }}
                 >
                     <div
@@ -57,21 +96,30 @@ export const Column = ({ id, title, cards }) => {
                     <InfiniteScroll
                         dataLength={100}
                         scrollableTarget={`div-${id}`}
+                        hasMore={true}
+                        next={() => {
+                            getCards(id, pageState + 1)
+                            setPageState((prev) => prev + 1)
+                            console.log("fetching ...")
+                        }}
+
                         // style={{ overflowY: 'auto', overflowX: 'hidden' }}
                     >
-                        {cards.map((card) => (
-                            <Card
-                                key={card.id}
-                                id={card.id}
-                                title={card.title}
-                            ></Card>
-                        ))}
+                        {cards ? (
+                            cards.map((card) => (
+                                <Card
+                                    key={uid()}
+                                    id={card.id}
+                                    title={card.title}
+                                />
+                            ))
+                        ) : (
+                            <div>آیتمی وجود ندارد</div>
+                        )}
                     </InfiniteScroll>
-                    <DragOverlay>
-                        {activeId ? <div>hello</div> : null}
-                    </DragOverlay>
                 </div>
             </SortableContext>
+            {/* <DragOverlay>{activeId ? <div>hello</div> : null}</DragOverlay> */}
         </div>
     )
 }
@@ -84,7 +132,7 @@ Column.propTypes = {
 
 export const Card = ({ id, title }) => {
     const { attributes, listeners, setNodeRef, transform } = useSortable({
-        id: id,
+        id,
     })
 
     const style = {
@@ -93,6 +141,7 @@ export const Card = ({ id, title }) => {
         color: '#333',
         background: 'white',
         padding: '10px',
+        transition: 'transform .4s',
         transform: CSS.Transform.toString(transform),
     }
 
@@ -101,6 +150,7 @@ export const Card = ({ id, title }) => {
     return (
         <div ref={setNodeRef} {...attributes} {...listeners} style={style}>
             <CardComponent />
+            {id}
         </div>
     )
 }
