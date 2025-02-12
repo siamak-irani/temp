@@ -1,0 +1,555 @@
+import React, {
+    useCallback,
+    useContext,
+    useEffect,
+    useRef,
+    useState,
+} from 'react'
+import { Button, Flex, InputNumber, Popover, Slider, theme } from 'antd'
+import PropTypes from 'prop-types'
+import api from '../../axios-proxy'
+import {
+    TbBrandSpeedtest,
+    TbDotsVertical,
+    TbDownload,
+    TbPlayerPause,
+    TbPlayerPlay,
+    TbRepeatOnce,
+    TbVolume,
+    TbVolume2,
+    TbVolume3,
+} from 'react-icons/tb'
+import { MessengerContext } from './Messenger'
+import { useDebounce } from 'react-use'
+import AppContext from '../../AppContext'
+
+const PLAYBACK_RATE_STEP = 0.1
+
+// const fetchVideoSource = async (url) => {
+//     const response = await api.get(url, { responseType: 'blob' })
+//     return response
+// }
+
+const fetchVideoSource = async (url, onProgress,user) => {
+    const response = await fetch(url, {
+        headers: {
+            Authorization: `Bearer ${user.jt}`,
+        },
+    })
+
+    if (!response.ok) {
+        throw new Error(`HTTP error! Status: ${response.status}`)
+    }
+
+    const reader = response.body.getReader()
+    const contentLength = response.headers.get('Content-Length')
+    let receivedLength = 0
+
+    const stream = new ReadableStream({
+        start(controller) {
+            function push() {
+                reader.read().then(({ done, value }) => {
+                    if (done) {
+                        controller.close()
+                        return
+                    }
+                    receivedLength += value.length
+                    const progress = Math.floor(
+                        (receivedLength * 100) / contentLength
+                    )
+                    onProgress(progress)
+
+                    controller.enqueue(value)
+                    push()
+                })
+            }
+            push()
+        },
+    })
+
+    return new Response(stream, { headers: { 'Content-Type': 'video/mp4' } })
+}
+
+const createDownloadNode = (blob, filename) => {
+    const href = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = href
+    link.setAttribute('download', filename)
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(href)
+}
+
+const VideoPlayer = ({ url, id }) => {
+    const [isPlaying, setIsPlaying] = useState(false)
+    // const [audio, setAudio] = useState(null)
+    const { token } = theme.useToken()
+    const [currentTime, setCurrentTime] = useState(0)
+    const [duration, setDuration] = useState()
+    const { playbackRate, setPlaybackRate } = useContext(MessengerContext)
+    const [volume, setVolume] = useState(1)
+    const [repeatOne, setRepeatOne] = useState(false)
+
+    const [video, setVideo] = useState(null)
+    const videoRef = useRef(null)
+
+    const {user} = useContext(AppContext)
+
+    const playAudio = useCallback(async () => {
+        // const audioContext = new window.AudioContext()
+        // if (audio) {
+        //     audio.play().then(() => {
+        //         setIsPlaying(true)
+        //     })
+        //     return
+        // }
+
+        const onProgress = (progress) => {
+            console.log(`Progress: ${progress}%`)
+        }
+
+        fetchVideoSource(url, onProgress, user)
+            .then((res) => {
+                const href = URL.createObjectURL(res.data)
+                setVideo({ href })
+                videoRef.current.play()
+
+                // setAudio(newAudio)
+                // return res?.data.arrayBuffer()
+            })
+            // .then(
+            //     // This is for the Chrome bug that returns Infinity for audio duration.
+            //     // more info in: https://github.com/muaz-khan/RecordRTC/issues/274#issuecomment-2561971930
+            //     (arrayBuffer) =>
+            //         new Promise((resolve, reject) => {
+            //             audioContext.decodeAudioData(
+            //                 arrayBuffer,
+            //                 (buffer) => resolve(buffer),
+            //                 (error) => reject(error)
+            //             )
+            //         })
+            // )
+            .then(() => {
+                // setDuration(buffer.duration)
+                setIsPlaying(true)
+            })
+    }, [url])
+
+    const pauseVideo = () => {
+        videoRef?.current.pause()
+        setIsPlaying(false)
+    }
+
+    const downloadVideo = useCallback(async () => {
+        fetchVideoSource(url).then((res) => {
+            const cd = res.headers.get('Content-Disposition')
+            const filename = cd.match(/filename=(.+);/)[1]
+            createDownloadNode(res.data, filename)
+        })
+    }, [url])
+
+    useEffect(() => {
+        if (videoRef) {
+            videoRef.current.ontimeupdate = () => {
+                setCurrentTime(videoRef.current.currentTime)
+            }
+        }
+    }, [])
+
+    useEffect(() => {
+        if (videoRef) {
+            videoRef.current.onended = () => {
+                if (repeatOne) {
+                    videoRef.current.play()
+                } else {
+                    setIsPlaying(false)
+                }
+            }
+        }
+    }, [videoRef, repeatOne, id])
+
+    useDebounce(
+        () => {
+            if (videoRef)
+                videoRef.current.playbackRate = playbackRate.toFixed(
+                    -Math.log10(PLAYBACK_RATE_STEP)
+                )
+        },
+        500,
+        [videoRef.current, playbackRate]
+    )
+
+    useDebounce(
+        () => {
+            if (videoRef) videoRef.current.volume = volume.toFixed(2)
+        },
+        500,
+        [videoRef, volume]
+    )
+
+    console.log(videoRef?.current?.duration)
+
+    return (
+        <>
+            {/* <video ref={videoRef} width="320" height="240" controls>
+                <source src={video?.href} type="video/mp4" />
+                Your browser does not support the video tag.
+            </video> */}
+            <video
+                ref={videoRef}
+                src={video?.href}
+                width="320"
+                height="240"
+                controls
+            />
+            <Flex>
+                {!isPlaying && (
+                    <Button
+                        shape="circle"
+                        type="text"
+                        icon={<TbPlayerPlay style={{ fontSize: 22 }} />}
+                        onClick={playAudio}
+                        style={{ padding: 15 }}
+                    />
+                )}
+                {isPlaying && (
+                    <Button
+                        shape="circle"
+                        type="text"
+                        icon={<TbPlayerPause style={{ fontSize: 22 }} />}
+                        onClick={pauseVideo}
+                        style={{ padding: 15 }}
+                    />
+                )}
+
+                <Button
+                    type="text"
+                    icon={<TbDownload />}
+                    onClick={downloadVideo}
+                    style={{
+                        fontSize: token.fontSize - 2,
+                        width: '100%',
+                        justifyContent: 'start',
+                    }}
+                />
+            </Flex>
+        </>
+    )
+
+    // return (
+    //     <Flex
+    //         align="center"
+    //         style={{
+    //             // width: '100%',
+    //             position: 'relative',
+    //             minWidth: 200,
+    //             marginBottom: 5,
+    //             borderRadius: 5,
+    //             padding: 10,
+    //             paddingTop: 20,
+    //             background: token.colorPrimaryBg,
+    //         }}
+    //         vertical
+    //     >
+    //         <div style={{ position: 'absolute', top: 3, left: 5 }}>
+    //             <Popover
+    //                 trigger={'click'}
+    //                 content={
+    //                     <Flex vertical gap={10}>
+    //                         <Button
+    //                             type="text"
+    //                             icon={<TbDownload />}
+    //                             onClick={downloadVideo}
+    //                             style={{
+    //                                 fontSize: token.fontSize - 2,
+    //                                 width: '100%',
+    //                                 justifyContent: 'start',
+    //                             }}
+    //                         >
+    //                             دانلود
+    //                         </Button>
+    //                         <Flex
+    //                             gap={5}
+    //                             align="center"
+    //                             style={{ fontSize: token.fontSize - 2 }}
+    //                         >
+    //                             <Popover
+    //                                 placement="left"
+    //                                 mouseLeaveDelay={0.5}
+    //                                 content={
+    //                                     <Slider
+    //                                         vertical
+    //                                         step={PLAYBACK_RATE_STEP}
+    //                                         marks={{
+    //                                             0: {
+    //                                                 style: {
+    //                                                     fontSize:
+    //                                                         token.fontSize - 4,
+    //                                                 },
+    //                                                 label: '0',
+    //                                             },
+    //                                             50: {
+    //                                                 style: {
+    //                                                     fontSize:
+    //                                                         token.fontSize - 4,
+    //                                                 },
+    //                                                 label: '1X',
+    //                                             },
+
+    //                                             100: {
+    //                                                 style: {
+    //                                                     fontSize:
+    //                                                         token.fontSize - 4,
+    //                                                 },
+    //                                                 label: '2X',
+    //                                             },
+    //                                         }}
+    //                                         tooltip={{
+    //                                             formatter: (val) => (
+    //                                                 <div
+    //                                                     style={{
+    //                                                         fontSize:
+    //                                                             token.fontSize -
+    //                                                             2,
+    //                                                     }}
+    //                                                 >
+    //                                                     {(val / 100) * 2}X
+    //                                                 </div>
+    //                                             ),
+    //                                         }}
+    //                                         onChange={(value) => {
+    //                                             setPlaybackRate(
+    //                                                 (value / 100) * 2
+    //                                             )
+    //                                         }}
+    //                                         value={(playbackRate / 2) * 100}
+    //                                         style={{
+    //                                             height: 100,
+    //                                         }}
+    //                                     />
+    //                                 }
+    //                             >
+    //                                 <Button
+    //                                     type="text"
+    //                                     style={{
+    //                                         fontSize: token.fontSize - 2,
+    //                                         cursor: 'default',
+    //                                     }}
+    //                                 >
+    //                                     <Flex align="center" gap={5}>
+    //                                         <TbBrandSpeedtest />
+    //                                         سرعت پخش
+    //                                     </Flex>
+
+    //                                     <PlaybackRateEditableInput
+    //                                         playbackRate={playbackRate}
+    //                                         onPlaybackRateChange={
+    //                                             setPlaybackRate
+    //                                         }
+    //                                     />
+    //                                 </Button>
+    //                             </Popover>
+    //                         </Flex>
+    //                     </Flex>
+    //                 }
+    //             >
+    //                 <Button
+    //                     shape="circle"
+    //                     type="text"
+    //                     icon={<TbDotsVertical />}
+    //                 />
+    //             </Popover>
+    //         </div>
+
+    //         <Flex
+    //             vertical
+    //             align="center"
+    //             style={{ width: '100%', padding: '0 10px' }}
+    //         >
+    //             <Slider
+    //                 min={0}
+    //                 max={100}
+    //                 value={(
+    //                     ((currentTime ?? 0) / (duration ?? 100)) *
+    //                     100
+    //                 ).toFixed(2)}
+    //                 onChange={(value) => {
+    //                     pauseVideo()
+    //                     const newTime = (value * duration) / 100
+    //                     audio.currentTime = newTime
+    //                     setCurrentTime(newTime)
+    //                 }}
+    //                 style={{ width: '100%' }}
+    //                 onChangeComplete={playAudio}
+    //                 tooltip={{ open: false }}
+    //                 reverse
+    //                 disabled={!duration}
+    //             />
+    //             <Flex
+    //                 justify="space-between"
+    //                 style={{
+    //                     fontSize: token.fontSize - 4,
+    //                     width: '100%',
+    //                     overflow: 'hidden',
+    //                     marginTop: '-8px',
+    //                 }}
+    //             >
+    //                 <div style={{ margin: '0 2px' }}>
+    //                     {isNaN(duration?.toFixed(1))
+    //                         ? '--/--'
+    //                         : duration?.toFixed(1)}
+    //                 </div>
+    //                 <div style={{ margin: '0 2px' }}>
+    //                     {isNaN(duration?.toFixed(1))
+    //                         ? '--/--'
+    //                         : currentTime?.toFixed(1)}
+    //                 </div>
+    //             </Flex>
+    //         </Flex>
+
+    //         <Flex gap={10}>
+    //             <Button
+    //                 shape="circle"
+    //                 type={repeatOne ? 'primary' : 'text'}
+    //                 icon={<TbRepeatOnce style={{ fontSize: 14 }} />}
+    //                 onClick={() => {
+    //                     setRepeatOne((prev) => !prev)
+    //                 }}
+    //                 style={{ padding: 15 }}
+    //             />
+
+    //             {!isPlaying && (
+    //                 <Button
+    //                     shape="circle"
+    //                     type="text"
+    //                     icon={<TbPlayerPlay style={{ fontSize: 22 }} />}
+    //                     onClick={playAudio}
+    //                     style={{ padding: 15 }}
+    //                 />
+    //             )}
+    //             {isPlaying && (
+    //                 <Button
+    //                     shape="circle"
+    //                     type="text"
+    //                     icon={<TbPlayerPause style={{ fontSize: 22 }} />}
+    //                     onClick={pauseVideo}
+    //                     style={{ padding: 15 }}
+    //                 />
+    //             )}
+
+    //             <Popover
+    //                 placement="left"
+    //                 mouseLeaveDelay={0.5}
+    //                 content={
+    //                     <Slider
+    //                         vertical
+    //                         step={PLAYBACK_RATE_STEP}
+    //                         disabled={!audio}
+    //                         marks={{
+    //                             0: {
+    //                                 style: {
+    //                                     fontSize: token.fontSize - 4,
+    //                                 },
+    //                                 label: '0',
+    //                             },
+
+    //                             50: {
+    //                                 style: {
+    //                                     fontSize: token.fontSize - 4,
+    //                                 },
+    //                                 label: '50',
+    //                             },
+
+    //                             100: {
+    //                                 style: {
+    //                                     fontSize: token.fontSize - 4,
+    //                                 },
+    //                                 label: '100',
+    //                             },
+    //                         }}
+    //                         tooltip={{
+    //                             formatter: (val) => (
+    //                                 <div
+    //                                     style={{
+    //                                         fontSize: token.fontSize - 2,
+    //                                     }}
+    //                                 >
+    //                                     {val}%
+    //                                 </div>
+    //                             ),
+    //                         }}
+    //                         value={volume * 100}
+    //                         onChange={(val) => setVolume(val / 100)}
+    //                         style={{
+    //                             height: 100,
+    //                         }}
+    //                     />
+    //                 }
+    //             >
+    //                 <Button
+    //                     shape="circle"
+    //                     type="text"
+    //                     icon={
+    //                         volume === 0 ? (
+    //                             <TbVolume3 />
+    //                         ) : volume < 0.5 ? (
+    //                             <TbVolume2 />
+    //                         ) : (
+    //                             <TbVolume />
+    //                         )
+    //                     }
+    //                     disabled={!audio}
+    //                     style={{ padding: 15 }}
+    //                 />
+    //             </Popover>
+    //         </Flex>
+    //     </Flex>
+    // )
+}
+
+VideoPlayer.propTypes = {
+    url: PropTypes.string,
+    id: PropTypes.string,
+}
+
+export default VideoPlayer
+
+const PlaybackRateEditableInput = ({ playbackRate, onPlaybackRateChange }) => {
+    const [isEditable, setIsEditable] = useState(false)
+
+    return (
+        <>
+            <Flex
+                justify="center"
+                style={{ width: 40, cursor: 'pointer' }}
+                onBlur={() => setIsEditable(false)}
+            >
+                {isEditable ? (
+                    <div>
+                        <InputNumber
+                            min={0}
+                            max={2}
+                            prefix="X"
+                            value={playbackRate}
+                            step={PLAYBACK_RATE_STEP}
+                            onChange={(val) => onPlaybackRateChange(val)}
+                            style={{ width: 50 }}
+                            onClick={(e) => e.stopPropagation()}
+                            controls={false}
+                        />
+                    </div>
+                ) : (
+                    <div onClick={() => setIsEditable(true)}>
+                        {playbackRate}X
+                    </div>
+                )}
+            </Flex>
+        </>
+    )
+}
+
+PlaybackRateEditableInput.propTypes = {
+    playbackRate: PropTypes.number,
+    onPlaybackRateChange: PropTypes.func,
+}
