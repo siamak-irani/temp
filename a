@@ -1,0 +1,98 @@
+در ادامه نمونه کدی ارائه شده که با استفاده از Axios Interceptor و Web Locks API، از ارسال همزمان چندین درخواست رفرش توکن جلوگیری می‌کند. در این مدل، اگر یک درخواست با وضعیت 401 (به دلیل منقضی شدن توکن) مواجه شود، ابتدا یک قفل با نام مشخص (مثلاً `"refresh-token-lock"`) گرفته می‌شود. این قفل تضمین می‌کند که تنها یک درخواست مسئول رفرش توکن باشد و بقیه درخواست‌ها منتظر پایان این عملیات بمانند. پس از دریافت توکن جدید، درخواست اصلی با هدر به‌روز شده مجدداً ارسال می‌شود.
+
+```javascript
+import axios from 'axios';
+
+// ساخت یک نمونه از axios با تنظیمات اولیه
+const axiosInstance = axios.create({
+  baseURL: '/api', // آدرس پایه API
+  timeout: 10000,
+});
+
+// تابع رفرش توکن
+async function refreshToken() {
+  const storedRefreshToken = localStorage.getItem('refreshToken');
+  if (!storedRefreshToken) {
+    throw new Error('Refresh token not found');
+  }
+
+  // ارسال درخواست به سرور جهت رفرش توکن
+  const response = await axios.post('/auth/refresh', {
+    refreshToken: storedRefreshToken,
+  });
+
+  // فرض می‌کنیم پاسخ شامل accessToken جدید می‌باشد
+  const newAccessToken = response.data.accessToken;
+
+  // ذخیره توکن به‌روز شده جهت استفاده‌های بعدی
+  localStorage.setItem('accessToken', newAccessToken);
+  return newAccessToken;
+}
+
+// interceptor درخواست: الحاق هدر توکن به هر درخواست
+axiosInstance.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('accessToken');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
+
+// interceptor پاسخ: دریافت کد 401
+axiosInstance.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const originalRequest = error.config;
+
+    // بررسی وضعیت 401 و جلوگیری از تکرار بی‌پایان درخواست
+    if (
+      error.response &&
+      error.response.status === 401 &&
+      !originalRequest._retry
+    ) {
+      originalRequest._retry = true;
+
+      try {
+        // استفاده از Web Locks API جهت گرفتن قفل "refresh-token-lock"
+        const newToken = await navigator.locks.request('refresh-token-lock', async () => {
+          // در این بخش ممکن است قبل از فراخوانی تابع رفرش، بررسی شود که آیا توکن تغییر کرده یا نه.
+          return refreshToken();
+        });
+
+        // به‌روزسازی هدر با توکن جدید
+        originalRequest.headers.Authorization = `Bearer ${newToken}`;
+
+        // تکرار درخواست اصلی با توکن جدید
+        return axiosInstance(originalRequest);
+      } catch (err) {
+        // در صورت خطا در رفرش توکن، می‌توان مثلاً کاربر را به صفحه لاگین هدایت کرد.
+        return Promise.reject(err);
+      }
+    }
+
+    return Promise.reject(error);
+  }
+);
+
+export default axiosInstance;
+```
+
+---
+
+### توضیحات تکمیلی
+
+1. **رابطه بین تب‌ها:**  
+   در شرایطی که چندین تب به‌صورت همزمان باز هستند، Web Locks API می‌تواند در برخی مرورگرها برای هماهنگی استفاده شود؛ اما در مواردی که پشتیبانی چندتب این API محدود است، ممکن است نیاز به استفاده از مکانیزم‌های اشتراک‌گذاری مانند `localStorage` یا `BroadcastChannel` داشته باشید تا هماهنگی بین تب‌ها به درستی اعمال شود.
+
+2. **مدیریت خطا:**  
+   در صورت بروز خطا در عملیات رفرش (مثل عدم اعتبار توکن رفرش)، بهتر است که کاربر را از وضعیت لاگین خارج کرده یا به صفحه دیگری هدایت کنید.
+
+3. **بهینه‌سازی:**  
+   پیش از فراخوانی تابع `refreshToken` در بخش قفل، می‌توان یک بررسی اضافه قرار داد تا در صورتی که توکن در حین انتظار توسط تب دیگری به‌روز شده باشد، نیازی به رفرش مجدد نباشد.
+
+این الگو به شما امکان می‌دهد تا در مواجهه با چندین درخواست همزمان (در یک تب یا میان تب‌ها) از ارسال مکرر درخواست‌های رفرش توکن جلوگیری کنید و تجربه‌ای پایدارتر و بدون خطا به کاربر ارائه دهید.
+
+ممکن است بخواهید بهینه‌سازی‌های بیشتری را متناسب با شرایط پروژه (مانند بررسی اعتبار زمان‌بندی توکن‌ها، استفاده از state management برای ذخیره وضعیت توکن، و هماهنگی بین تب‌ها) انجام دهید. این موضوعات می‌توانند در بهبود مقیاس‌پذیری و کارایی برنامه نقش کلیدی داشته باشند.
