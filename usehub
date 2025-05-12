@@ -1,0 +1,58 @@
+import { useEffect, useState } from 'react'
+import { HubConnectionBuilder } from '@microsoft/signalr'
+import tokenFactory from '../token-factory'
+
+const useHub = (user, endpoint) => {
+  const [connection, setConnection] = useState()
+
+  useEffect(() => {
+    let c = null
+    let isMounted = true
+
+    // Function to establish connection with optional retry
+    const establishConnection = async (retry = true) => {
+      try {
+        const jwt = await tokenFactory()
+        if (jwt === null) {
+          // No token available, stop existing connection
+          if (c) {
+            await c.stop()
+            console.log('system hub -> stopped')
+          }
+          return
+        }
+
+        // Build new connection instance
+        c = new HubConnectionBuilder()
+          .withUrl(
+            `${import.meta.env.VITE_APP_DOMAIN_NAME}${endpoint}`,
+            { accessTokenFactory: () => jwt }
+          )
+          .withAutomaticReconnect()
+          .build()
+
+        console.log('hub -> starting')
+        await c.start()
+        if (isMounted) setConnection(c)
+      } catch (err) {
+        console.log('hub start error:', err)
+        // If unauthorized and retry is allowed, refresh token and retry
+        if (retry && err.statusCode === 401) {
+          console.log('hub -> 401 unauthorized, refreshing token and retrying')
+          await establishConnection(false)
+        }
+      }
+    }
+
+    establishConnection()
+
+    return () => {
+      isMounted = false
+      if (c) c.stop()
+    }
+  }, [user, endpoint])
+
+  return connection
+}
+
+export default useHub
