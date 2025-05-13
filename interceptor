@@ -1,0 +1,83 @@
+import axios from 'axios'
+import tokenRefresher from './components/token-refresher'
+
+// A service to manage token refresh state and subscribers
+class RefreshService {
+  constructor() {
+    this.isRefreshing = false
+    this.subscribers = []
+  }
+
+  subscribe(callback) {
+    this.subscribers.push(callback)
+  }
+
+  notify(token) {
+    this.subscribers.forEach(cb => cb(token))
+    // clear subscribers after notifying
+    this.subscribers = []
+  }
+}
+
+// Single shared instance
+const refreshService = new RefreshService()
+
+// Create Axios client
+const client = axios.create()
+
+// Attach Authorization header from stored user token
+client.interceptors.request.use(
+  (config) => {
+    const user = JSON.parse(window.localStorage.getItem('user'))
+    if (user?.jt) {
+      config.headers['Authorization'] = `Bearer ${user.jt}`
+    }
+    return config
+  },
+  (error) => Promise.reject(error)
+)
+
+// Response interceptor to handle 401 and token refreshing
+client.interceptors.response.use(
+  response => response,
+  async (error) => {
+    const originalRequest = error.config
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      originalRequest._retry = true
+
+      // If not already refreshing, start the refresh flow
+      if (!refreshService.isRefreshing) {
+        refreshService.isRefreshing = true
+        tokenRefresher()
+          .then(newToken => {
+            refreshService.isRefreshing = false
+            refreshService.notify(newToken)
+          })
+          .catch(err => {
+            refreshService.isRefreshing = false
+            // Optionally, notify subscribers of failure
+            refreshService.notify(null)
+            throw err
+          })
+      }
+
+      // Queue the request until the refresh completes
+      return new Promise((resolve, reject) => {
+        refreshService.subscribe((token) => {
+          if (token) {
+            originalRequest.headers['Authorization'] = `Bearer ${token}`
+            resolve(client(originalRequest))
+          } else {
+            // If refresh failed, reject the queued requests
+            reject(error)
+          }
+        })
+      })
+    }
+
+    // For other errors, reject immediately
+    return Promise.reject(error)
+  }
+)
+
+export default client
