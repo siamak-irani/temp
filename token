@@ -1,0 +1,284 @@
+const bc = new BroadcastChannel('test_channel');
+let refreshState = 'isNotRefreshing';
+
+bc.onmessage = ({ data }) => {
+  refreshState = data;
+};
+
+async function tokenRefresher() {
+  try {
+    let user = JSON.parse(localStorage.getItem('user'));
+    const now = Date.now();
+
+    // helper برای ریفرش توکن
+    async function handleRefresh() {
+      const resp = await refreshJwtToken(user.rt);
+      if (resp.status === 401 || resp.status === 500) {
+        console.log('auth -> jwt refresh failed', resp.status);
+        localStorage.removeItem('user');
+        return;
+      }
+      const data = await resp.json();
+      const tNow = Date.now();
+      user = {
+        ...user,
+        jt: data.jwtToken,
+        rt: data.refreshToken,
+        jtExp: new Date(tNow + import.meta.env.VITE_JT_TTL * 60000 - 15000).toJSON(),
+        rtExp: new Date(tNow + import.meta.env.VITE_RT_TTL * 86400000 - 15000).toJSON(),
+      };
+    }
+
+    // چک expire
+    if (isTokenExpired(user.jtExp)) {
+      if (navigator.locks) {
+        // اگر Lock API در دسترس بود
+        await navigator.locks.request('refresh-token-lock', handleRefresh);
+      } else {
+        if (refreshState === 'isRefreshing') {
+          // منتظر می‌مونیم تا کانال پیام isNotRefreshing بده
+          await waitForBroadcastMessageChange();
+        } else {
+          bc.postMessage('isRefreshing');
+          refreshState = 'isRefreshing';
+
+          await handleRefresh();
+
+          bc.postMessage('isNotRefreshing');
+          refreshState = 'isNotRefreshing';
+          console.log('auth -> jwt refreshed successfully');
+        }
+      }
+    }
+
+    localStorage.setItem('user', JSON.stringify(user));
+    return user.jt;
+  } catch (err) {
+    localStorage.removeItem('user');
+    bc.postMessage('isNotRefreshing');
+    window.location.href = '/login';
+    throw err;
+  }
+}
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+
+const bc = new BroadcastChannel('test_channel');
+let refreshState = 'isNotRefreshing';
+
+bc.onmessage = ({ data }) => {
+  refreshState = data;
+};
+
+function waitForBroadcastMessageChange() {
+  return new Promise((resolve) => {
+    const handler = (event) => {
+      if (event.data === 'isNotRefreshing') {
+        bc.removeEventListener('message', handler);
+        resolve();
+      }
+    };
+    bc.addEventListener('message', handler);
+  });
+}
+
+async function tokenRefresher() {
+  try {
+    let user = JSON.parse(localStorage.getItem('user'));
+    const now = Date.now();
+
+    async function handleRefresh() {
+      const resp = await refreshJwtToken(user.rt);
+      if (resp.status === 401 || resp.status === 500) {
+        console.log('auth -> jwt refresh failed', resp.status);
+        localStorage.removeItem('user');
+        return;
+      }
+      const data = await resp.json();
+      const tNow = Date.now();
+      user = {
+        ...user,
+        jt: data.jwtToken,
+        rt: data.refreshToken,
+        jtExp: new Date(tNow + import.meta.env.VITE_JT_TTL * 60000 - 15000).toJSON(),
+        rtExp: new Date(tNow + import.meta.env.VITE_RT_TTL * 86400000 - 15000).toJSON(),
+      };
+    }
+
+    if (isTokenExpired(user.jtExp)) {
+      if ('locks' in navigator) {
+        // 1) اول Lock API
+        await navigator.locks.request('refresh-token-lock', async () => {
+          // 2) بعد Broadcast به سایر تب‌ها
+          bc.postMessage('isRefreshing');
+          refreshState = 'isRefreshing';
+
+          await handleRefresh();
+
+          bc.postMessage('isNotRefreshing');
+          refreshState = 'isNotRefreshing';
+          console.log('auth -> jwt refreshed successfully');
+        });
+      } else {
+        // fallback: فقط BroadcastChannel
+        if (refreshState === 'isRefreshing') {
+          await waitForBroadcastMessageChange();
+        } else {
+          bc.postMessage('isRefreshing');
+          refreshState = 'isRefreshing';
+
+          await handleRefresh();
+
+          bc.postMessage('isNotRefreshing');
+          refreshState = 'isNotRefreshing';
+          console.log('auth -> jwt refreshed successfully');
+        }
+      }
+    }
+
+    localStorage.setItem('user', JSON.stringify(user));
+    return user.jt;
+  } catch (err) {
+    localStorage.removeItem('user');
+    bc.postMessage('isNotRefreshing');
+    window.location.href = '/login';
+    throw err;
+  }
+}
+
+export default tokenRefresher;
+
+async function refreshJwtToken(rt) {
+  return fetch(`/api/auth/refresh-token`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ RefreshToken: rt }),
+  });
+}
+
+function isTokenExpired(tokenExpireDate) {
+  return Date.now() >= new Date(tokenExpireDate);
+}
+
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////\
+
+
+بله، در حقیقت می‌توان کاملاً از آن متغیر درون‌حافظه‌ای `refreshState` چشم‌پوشی کرد و صرفاً به پیام‌های BroadcastChannel برای هماهنگی فشار آورد. تنها کاری که نیاز داریم این است که:
+
+1. برای هر وضعیت (`isRefreshing` و `isNotRefreshing`) یک Promise بسازیم که دقیقاً به اولین دریافت آن پیام گوش بدهد.
+2. در حالت بدون Lock API، وقتی ببینیم که هیچ Refresh‌‌ای از قبل شروع نشده (مثلاً با یک `Promise.race`‌ کوتاه)، خودمان دست به کار شویم. در غیر این صورت منتظر بمانیم تا پیام `isNotRefreshing` برسد.
+
+---
+
+## کد نمونه
+
+```js
+const bc = new BroadcastChannel('test_channel');
+
+function waitForStatus(status) {
+  return new Promise(resolve => {
+    const handler = ({ data }) => {
+      if (data === status) {
+        bc.removeEventListener('message', handler);
+        resolve();
+      }
+    };
+    bc.addEventListener('message', handler);
+  });
+}
+
+async function tokenRefresher() {
+  try {
+    let user = JSON.parse(localStorage.getItem('user'));
+
+    async function handleRefresh() {
+      const resp = await refreshJwtToken(user.rt);
+      if (resp.status === 401 || resp.status === 500) {
+        console.log('auth -> jwt refresh failed', resp.status);
+        localStorage.removeItem('user');
+        return;
+      }
+      const data = await resp.json();
+      const now = Date.now();
+      user = {
+        ...user,
+        jt: data.jwtToken,
+        rt: data.refreshToken,
+        jtExp: new Date(now + import.meta.env.VITE_JT_TTL * 60000 - 15000).toJSON(),
+        rtExp: new Date(now + import.meta.env.VITE_RT_TTL * 86400000 - 15000).toJSON(),
+      };
+    }
+
+    if (isTokenExpired(user.jtExp)) {
+      if ('locks' in navigator) {
+        // 1) همیشه اول تلاش می‌کنیم لاک را بگیریم
+        await navigator.locks.request('refresh-token-lock', async () => {
+          bc.postMessage('isRefreshing');
+          await handleRefresh();
+          bc.postMessage('isNotRefreshing');
+          console.log('auth -> jwt refreshed successfully');
+        });
+      } else {
+        // 2) در نبود Lock API
+        // a) منتظر می‌مانیم ببینیم آیا تب دیگری از قبل refresh را شروع کرده؟
+        const started = waitForStatus('isRefreshing');
+        const immediate = new Promise(res => setTimeout(res, 0));
+        const first = await Promise.race([started, immediate]);
+
+        if (first === undefined) {
+          // هیچ کس قبل از ما شروع نکرد → خودمان شروع می‌کنیم
+          bc.postMessage('isRefreshing');
+          await handleRefresh();
+          bc.postMessage('isNotRefreshing');
+          console.log('auth -> jwt refreshed successfully');
+        } else {
+          // تب دیگری در حال Refresh است → منتظر می‌مانیم تمام شود
+          await waitForStatus('isNotRefreshing');
+        }
+      }
+    }
+
+    localStorage.setItem('user', JSON.stringify(user));
+    return user.jt;
+  } catch (err) {
+    localStorage.removeItem('user');
+    bc.postMessage('isNotRefreshing');
+    window.location.href = '/login';
+    throw err;
+  }
+}
+
+// --- کمکی‌ها ---
+function refreshJwtToken(rt) {
+  return fetch(`/api/auth/refresh-token`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ RefreshToken: rt }),
+  });
+}
+
+function isTokenExpired(exp) {
+  return Date.now() >= new Date(exp);
+}
+
+export default tokenRefresher;
+```
+
+---
+
+### توضیح مختصر
+
+* **حذف `refreshState`**
+  دیگر نیازی نیست متغیری در حافظه داشته باشیم که حالت را نگه دارد؛ تماماً به پیام‌های کانال پست‌شده (`isRefreshing`/`isNotRefreshing`) متکی هستیم.
+* **تابع `waitForStatus`**
+  این تابع یک Promise برمی‌گرداند که به اولین دریافت وضعیت مشخص گوش می‌دهد و همان‌جا resolve می‌شود.
+* **استفاده از `Promise.race`**
+  در حالت fallback (بدون Lock API) با یک race خیلی سریع می‌فهمیم آیا تب دیگری قبل از ما refresh را آغاز کرده یا خیر. اگر نه، خودمان شروع می‌کنیم؛ در غیر این صورت می‌نشینیم تا پیام پایان برسد.
+* **تقسیم منطق**
+
+  * اگر Lock API موجود باشد، آن را می‌گیریم و در همان بلوک لاک پیام‌های Refresh/Done را broadcast می‌کنیم.
+  * وگرنه، با ترفند race فشار روی CPU یا polling نداریم و فقط بر اساس پیام‌ها واکنش نشان می‌دهیم.
+
+با این روش، هم مصرف منابع‌تان پایین می‌آید و هم کد شفاف‌تر و بدون state اضافی می‌شود.
