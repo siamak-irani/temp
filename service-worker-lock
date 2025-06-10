@@ -1,0 +1,222 @@
+/* Version 1: Queue + Web Locks API */
+
+let queue = [];
+let isRefreshing = false;
+
+self.addEventListener('install', event => {
+  event.waitUntil(self.skipWaiting());
+});
+
+self.addEventListener('activate', event => {
+  event.waitUntil(self.clients.claim());
+});
+
+self.addEventListener('message', event => {
+  const { rt, jtTTL, rtTTL, type } = event.data.payload;
+  const port = event.ports[0];
+
+  // Push callback immediately
+  queue.push(credentials => port.postMessage(credentials));
+
+  // If already refreshing, others will wait
+  if (isRefreshing) return;
+
+  isRefreshing = true;
+
+  // Use Web Locks API to serialize across messages
+  navigator.locks.request('refresh-lock', async lock => {
+    let credentials;
+    try {
+      if (type === 'REFRESH_TOKEN') {
+        const response = await fetch('/api/auth/refresh-token', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ RefreshToken: rt })
+        });
+
+        if (!response.ok) {
+          const error = await response.text();
+          queue.forEach(cb => cb({ error }));
+          return;
+        }
+
+        const data = await response.json();
+        const now = Date.now();
+        credentials = {
+          jt: data.jwtToken,
+          rt: data.refreshToken,
+          jtExp: new Date(now + jtTTL * 60000).toJSON(),
+          rtExp: new Date(now + rtTTL * 86400000).toJSON()
+        };
+
+        // Persist credentials in IndexedDB
+        await saveCredentials({ id: 0, ...credentials });
+      }
+    } catch (err) {
+      queue.forEach(cb => cb({ error: err.message }));
+      return;
+    } finally {
+      // Release flag
+      isRefreshing = false;
+      // Flush queue
+      queue.forEach(cb => cb(credentials));
+      queue = [];
+    }
+  });
+});
+
+async function saveCredentials(cred) {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open('store');
+    req.onupgradeneeded = e => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains('credentials')) {
+        db.createObjectStore('credentials', { keyPath: 'id' });
+      }
+    };
+    req.onsuccess = () => {
+      const db = req.result;
+      const tx = db.transaction('credentials', 'readwrite');
+      tx.objectStore('credentials').put(cred);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    };
+    req.onerror = () => reject(req.error);
+  });
+}
+
+
+/* Version 2: Queue + Web Locks API + IndexedDB-based Distributed Lock */
+
+let queue2 = [];
+let isRefreshing2 = false;
+
+self.addEventListener('install', event => {
+  event.waitUntil(self.skipWaiting());
+});
+
+self.addEventListener('activate', event => {
+  event.waitUntil(self.clients.claim());
+});
+
+self.addEventListener('message', event => {
+  const { rt, jtTTL, rtTTL, type } = event.data.payload;
+  const port = event.ports[0];
+
+  // Push callback immediately
+  queue2.push(credentials => port.postMessage(credentials));
+
+  if (isRefreshing2) return;
+  isRefreshing2 = true;
+
+  // Combine Web Lock + IndexedDB lock
+  navigator.locks.request('refresh-lock', async lock => {
+    try {
+      // Acquire persistent lock
+      const gotDbLock = await tryAcquireDbLock('refresh-lock', 30000);
+      if (!gotDbLock) {
+        throw new Error('Cannot acquire DB lock');
+      }
+
+      let credentials;
+      if (type === 'REFRESH_TOKEN') {
+        const response = await fetch('/api/auth/refresh-token', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ RefreshToken: rt })
+        });
+
+        if (!response.ok) {
+          const error = await response.text();
+          queue2.forEach(cb => cb({ error }));
+          return;
+        }
+
+        const data = await response.json();
+        const now = Date.now();
+        credentials = {
+          jt: data.jwtToken,
+          rt: data.refreshToken,
+          jtExp: new Date(now + jtTTL * 60000).toJSON(),
+          rtExp: new Date(now + rtTTL * 86400000).toJSON()
+        };
+
+        await saveCredentials({ id: 0, ...credentials });
+      }
+
+      // Release persistent lock
+      await releaseDbLock('refresh-lock');
+
+      // Flush queue
+      queue2.forEach(cb => cb(credentials));
+    } catch (err) {
+      queue2.forEach(cb => cb({ error: err.message }));
+    } finally {
+      isRefreshing2 = false;
+      queue2 = [];
+    }
+  });
+});
+
+/* IndexedDB-based lock helpers */
+async function tryAcquireDbLock(key, maxAgeMs) {
+  const db = await openDb();
+  const tx = db.transaction('locks', 'readwrite');
+  const store = tx.objectStore('locks');
+  const now = Date.now();
+
+  const rec = await getRecord(store, key);
+  if (rec && (now - rec.timestamp) < maxAgeMs) {
+    return false; // someone else holds fresh lock
+  }
+
+  await putRecord(store, { key, timestamp: now });
+  return true;
+}
+
+async function releaseDbLock(key) {
+  const db = await openDb();
+  const tx = db.transaction('locks', 'readwrite');
+  tx.objectStore('locks').delete(key);
+  return tx.complete;
+}
+
+function openDb() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open('store');
+    req.onupgradeneeded = e => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains('credentials')) {
+        db.createObjectStore('credentials', { keyPath: 'id' });
+      }
+      if (!db.objectStoreNames.contains('locks')) {
+        db.createObjectStore('locks', { keyPath: 'key' });
+      }
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+function getRecord(store, key) {
+  return new Promise((resolve, reject) => {
+    const r = store.get(key);
+    r.onsuccess = () => resolve(r.result);
+    r.onerror = () => reject(r.error);
+  });
+}
+
+function putRecord(store, rec) {
+  return new Promise((resolve, reject) => {
+    const r = store.put(rec);
+    r.onsuccess = () => resolve();
+    r.onerror = () => reject(r.error);
+  });
+}
+
+async function saveCredentials(cred) {
+  const db = await openDb();
+  const tx = db.transaction('credentials', 'readwrite');
+  tx.objectStore('credentials').put(cred);
+  return tx.complete;
+}
