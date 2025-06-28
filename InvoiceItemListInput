@@ -1,778 +1,175 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import PropTypes from 'prop-types'
-import InputMoney from './InputMoney'
-import {
-    Button,
-    Divider,
-    Flex,
-    Form,
-    Input,
-    InputNumber,
-    Tag,
-    theme,
-} from 'antd'
-import { TbCircleMinus, TbCirclePlus, TbEdit, TbScale } from 'react-icons/tb'
-import SelectType from './SelectType'
+import React, { useState } from 'react'
+import CollapseableCard from './CollapseableCard'
+import { TbCube, TbMinus, TbPlus } from 'react-icons/tb'
+import { Button, Flex } from 'antd'
 import SelectItem from './SelectItem'
-import DiscountModal from './DiscountModal'
-import LOOKUP from '../lookup'
-import SelectStock from './SelectStock'
-import React from 'react'
+import PropTypes from 'prop-types'
 
-const InvoiceItemListInput = ({ id, required, listName, label }) => {
-    return (
-        <Form.List
-            name={listName}
-            rules={[
-                {
-                    validator: async (_, v) => {
-                        return required && (!v || v.length <= 0)
-                            ? Promise.reject(
-                                  new Error(`فیلد ${label} اجباریست`)
-                              )
-                            : Promise.resolve(v)
-                    },
-                },
-            ]}
-        >
-            {(fields, { add, remove }, { errors }) => (
-                <>
-                    {errors.length > 0 && (
-                        <span
-                            style={{
-                                color: 'red',
-                                marginRight: 10,
-                            }}
-                        >
-                            <Form.ErrorList errors={errors} />
-                        </span>
-                    )}
+const ItemListInput = ({ value, onChange, isOpenDefault = true }) => {
+  const [items, setItems] = useState([])
 
-                    {/* list */}
-                    <div
-                        style={{ overflowX: 'auto', margin: '10px 0' }}
-                        className="invoice-list-input"
-                    >
-                        {fields.map(({ key, name, ...rest }) => (
-                            <LineInputs
-                                key={key}
-                                id={id}
-                                lineName={name}
-                                remove={remove}
-                                listName={listName}
-                                {...rest}
-                            />
-                        ))}
-                    </div>
+  // Add a new empty row
+  const handleAdd = () => {
+    setItems(prev => [
+      ...prev,
+      { id: `${Date.now()}_${Math.random()}`, value: null }
+    ])
+  }
 
-                    {/* add btn */}
-                    <div style={{ marginBottom: 10 }}>
-                        <Button
-                            block
-                            onClick={() => add()}
-                            icon={<TbCirclePlus />}
-                        >
-                            افزودن قلم
-                        </Button>
-                    </div>
+  // Remove row at index
+  const handleRemove = index => {
+    const updated = items.filter((_, i) => i !== index)
+    setItems(updated)
+    // Emit change after removal
+    const selected = updated
+      .filter(item => item.value != null)
+      .map(item => item.value)
+    onChange?.(selected)
+  }
 
-                    <InvoiceItemsDetail listName={listName} />
-                </>
-            )}
-        </Form.List>
+  // When a SelectItem changes
+  const handleItemChange = (index, newValue) => {
+    const updated = items.map((item, i) =>
+      i === index ? { ...item, value: newValue } : item
     )
+    setItems(updated)
+    // Emit only non-null values
+    const selected = updated
+      .filter(item => item.value != null)
+      .map(item => item.value)
+    onChange?.(selected)
+  }
+
+  return (
+    <CollapseableCard
+      collapsible="icon"
+      isOpenDefault={isOpenDefault}
+      title={
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Flex>
+            <TbCube style={{ margin: '0 5px' }} />
+            <div>کالا</div>
+          </Flex>
+          <Button
+            type="dashed"
+            style={{ width: 50 }}
+            onClick={handleAdd}
+            icon={<TbPlus />}
+          />
+        </div>
+      }
+    >
+      <Flex direction="column" gap={10}>
+        {items.map((item, index) => (
+          <Flex key={item.id} gap={10} align="center">
+            <Button
+              type="text"
+              icon={<TbMinus />}
+              onClick={() => handleRemove(index)}
+            />
+            <SelectItem
+              value={item.value}
+              onChange={(val) => handleItemChange(index, val)}
+              style={{ flex: 1 }}
+            />
+          </Flex>
+        ))}
+      </Flex>
+    </CollapseableCard>
+  )
 }
 
-InvoiceItemListInput.propTypes = {
-    id: PropTypes.string,
-    data: PropTypes.object,
-    listName: PropTypes.string,
-    label: PropTypes.string,
-    required: PropTypes.bool,
+ItemListInput.propTypes = {
+  value: PropTypes.array,
+  onChange: PropTypes.func.isRequired,
+  isOpenDefault: PropTypes.bool,
 }
 
-export default InvoiceItemListInput
+export default ItemListInput
 
-const ItemDiscountInput = ({ value, onChange, listName, lineName }) => {
-    const form = Form.useFormInstance()
-    const total = form.getFieldValue([listName, lineName, 'total'])
-    const globalDiscountPercentage = Form.useWatch('globalDiscount', form)
-    const globalDiscount = useMemo(
-        () => ((globalDiscountPercentage ?? 0) * (total ?? 0)) / 100,
-        [globalDiscountPercentage, total]
-    )
+// -------------------------
+// SelectItem.jsx
 
-    const [totalDiscount, setTotalDiscount] = useState(value)
-    const [inputValue, setInputValue] = useState(value)
+import { useEffect, useMemo, useState } from 'react'
+import { Flex, Select, Space, theme } from 'antd'
+import api from '../axios-proxy'
+import PropTypes from 'prop-types'
+import debounce from 'lodash.debounce'
 
-    const handleDiscountChange = useCallback(
-        (value) => {
-            setInputValue((value ?? 0) - globalDiscount)
-        },
-        [globalDiscount]
-    )
+const SelectItem = ({ value, onChange, addonBefore, onLoad, ...props }) => {
+  const [data, setData] = useState([])
+  const [isLoading, setIsLoading] = useState(false)
+  const [query, setQuery] = useState('')
+  const { token } = theme.useToken()
 
-    useEffect(() => onChange(totalDiscount ?? 0), [totalDiscount])
-
-    useEffect(() => {
-        setTotalDiscount((inputValue ?? 0) + globalDiscount)
-    }, [globalDiscount, inputValue])
-
-    return (
-        <DiscountModal
-            discount={totalDiscount}
-            title="تخفیف"
-            label="تخفیف"
-            total={total}
-            totalAmountLabel={'مبلغ کل این کالا'}
-            onChange={handleDiscountChange}
-            renderContent={({ handleOpenModal }) => (
-                <InputMoney
-                    value={value}
-                    min={0}
-                    onChange={handleDiscountChange}
-                    addonBefore={
-                        <Flex gap={2} align="center">
-                            <>تخفیف</>
-                            <TbEdit
-                                onClick={() => handleOpenModal()}
-                                style={{ cursor: 'pointer' }}
-                            />
-                        </Flex>
-                    }
-                />
-            )}
-        />
-    )
-}
-
-ItemDiscountInput.propTypes = {
-    value: PropTypes.any,
-    data: PropTypes.object,
-    onChange: PropTypes.func,
-    listName: PropTypes.string,
-    lineName: PropTypes.number,
-}
-
-const AdditionInput = ({ value, onChange, listName, lineName }) => {
-    const [isToched, setIsTouched] = useState(false)
-
-    const form = Form.useFormInstance()
-    const globalAddition = Form.useWatch('globalAddition', form)
-    const price = Form.useWatch([listName, lineName, 'price'], form)
-    const totalPrice = Form.useWatch([listName], form)?.reduce(
-        (acc, item) => acc + (item?.price ?? 0),
-        0
-    )
-    const totalCount = Form.useWatch([listName])?.length ?? 0
-
-    const additionShare = useMemo(() => {
-        setIsTouched(false)
-        const tp = totalPrice ?? 0
-        if (tp === 0) {
-            return isNaN(globalAddition / totalCount)
-                ? 0
-                : globalAddition / totalCount
+  const handleSearch = useMemo(
+    () =>
+      debounce((val) => {
+        if (isNaN(val)) {
+          setQuery(`&titleContains=${val}`)
         } else {
-            return ((price ?? 0) / (totalPrice ?? 0)) * (globalAddition ?? 0)
+          setQuery(`&codeContains=${val}`)
         }
-    }, [globalAddition, price, totalCount, totalPrice])
+      }, 500),
+    []
+  )
 
-    const [inputValue, setInputValue] = useState(value)
+  useEffect(() => {
+    setIsLoading(true)
+    api
+      .get(`/api/items?isDeleted=false&includeStocks=true${query}`)
+      .then((res) => setData(res.data.items))
+      .finally(() => setIsLoading(false))
+  }, [query])
 
-    const [x, setX] = useState(null)
+  useEffect(() => {
+    if (value != null) {
+      const selectedItem = data.find(i => i.id === value)
+      onLoad?.(value, selectedItem)
+    }
+  }, [value, data, onLoad])
 
-    const handleAdditionChange = useCallback(
-        (value) => {
-            setIsTouched(true)
-
-            // setInputValue((value ?? 0) - (additionShare ?? 0))
-
-            onChange(value)
-
-            setInputValue((value ?? 0) > (additionShare ?? 0)  ?( (value ?? 0) - (additionShare ?? 0) ): value)
-
-            setX(value)
-            // console.log(
-            //     value ?? 0,
-            //     additionShare ?? 0,
-            //     (value ?? 0) - (additionShare ?? 0)
-            // )
-        },
-        [additionShare]
-    )
-
-    // useEffect(()=>{
-    //     globalAddition?.
-    // },[])
-
-    useEffect(() => {
-        // onChange((inputValue ?? 0) + (additionShare ?? 0))
-
-
-        console.log(inputValue, additionShare)
-        onChange((inputValue ?? 0) + (additionShare ?? 0))
-
-    }, [additionShare])
-
-
-
-    useEffect(() => {
-        console.log({
-            inputValue,
-            value,
-            additionShare,
-            globalAddition,
-            x,
-        })
-    }, [inputValue, value, x])
-
-    return (
-        <InputMoney
-            value={value}
-            placeholder="اضافات ..."
-            addonBefore={<>اضافات</>}
-            onChange={handleAdditionChange}
-            min={0}
+  return (
+    <Flex style={{ width: '100%' }}>
+      <Space.Compact style={{ width: '100%' }}>
+        {addonBefore && (
+          <Flex
+            align="center"
+            style={{
+              border: `1px solid ${token.colorBorder}`,
+              background: token.colorBgElevated,
+              borderRadius: '0 5px 5px 0',
+              padding: '0 10px',
+            }}
+          >
+            {addonBefore}
+          </Flex>
+        )}
+        <Select
+          value={value}
+          placeholder="کالا ..."
+          showSearch
+          loading={isLoading}
+          options={useMemo(
+            () =>
+              data.map(x => ({ value: x.id, label: x.title })),
+            [data]
+          )}
+          onClick={e => e.stopPropagation()}
+          onChange={(val) => onChange(val)}
+          onSearch={handleSearch}
+          {...props}
         />
-    )
+      </Space.Compact>
+    </Flex>
+  )
 }
 
-AdditionInput.propTypes = {
-    value: PropTypes.any,
-    data: PropTypes.object,
-    onChange: PropTypes.func,
-    listName: PropTypes.string,
-    lineName: PropTypes.number,
+SelectItem.propTypes = {
+  value: PropTypes.number,
+  onChange: PropTypes.func.isRequired,
+  addonBefore: PropTypes.any,
+  onLoad: PropTypes.func,
 }
 
-const LineInputs = ({ id, lineName, remove, listName, ...rest }) => {
-    const form = Form.useFormInstance()
-    useEffect(
-        () => form.setFieldValue([listName, lineName, 'row'], lineName + 1),
-        [form, lineName, listName]
-    )
-
-    const getFieldValue = useCallback(
-        (name) => {
-            return form.getFieldValue([listName, lineName, name])
-        },
-        [form, listName, lineName]
-    )
-    const setFieldValue = useCallback(
-        (name, value) => {
-            form.setFieldValue([listName, lineName, name], value)
-        },
-        [form, listName, lineName]
-    )
-
-    const item = Form.useWatch([listName, lineName, 'item'])
-    const currencyId = Form.useWatch('currencyId', form)
-    const saleType = Form.useWatch('saleType', { form, preserve: true })
-
-    const line = Form.useWatch(listName, form)
-
-    /* Autofill unit field */
-    useEffect(() => {
-        if (id === undefined || line !== undefined) {
-            setFieldValue('unitId', item?.unitId)
-        }
-    }, [id, item?.unitId, setFieldValue])
-
-    /* Autofill price field */
-    useEffect(() => {
-        if (id === undefined || line !== undefined) {
-            const priceDecl = saleType?.priceDeclarations?.find(
-                (x) =>
-                    x.itemId === item?.id &&
-                    x.unitId === item?.unitId &&
-                    x.currencyId === currencyId
-            )
-            setFieldValue('price', priceDecl?.price)
-        }
-    }, [id, item, saleType, currencyId, setFieldValue, getFieldValue])
-
-    const price = Form.useWatch([listName, lineName, 'price'], form)
-    const quantity = Form.useWatch([listName, lineName, 'quantity'], form)
-
-    /* Autofill total field */
-    useEffect(() => {
-        const total = parseInt(price) * parseFloat(quantity)
-        setFieldValue('total', !isNaN(total) ? total : 0)
-    }, [id, price, quantity, setFieldValue])
-
-    /* Autofill tax field */
-    useEffect(() => {
-        if (id === undefined || line !== undefined) {
-            const total = parseInt(price) * parseFloat(quantity)
-            const tax = Math.round((total * item?.taxRate) / 100)
-            setFieldValue('tax', !isNaN(tax) ? tax : 0)
-        }
-    }, [id, item?.taxRate, setFieldValue, price, quantity])
-
-    const tax = Form.useWatch([listName, lineName, 'tax'], form)
-    const total = Form.useWatch([listName, lineName, 'total'], form)
-    const discount = Form.useWatch([listName, lineName, 'discount'], form)
-    const addition = Form.useWatch([listName, lineName, 'addition'], form)
-
-    /* Autofill net field */
-    useEffect(() => {
-        const net = total + tax + addition - discount
-        setFieldValue('net', !isNaN(net) ? net : 0)
-    }, [tax, discount, total, addition, setFieldValue])
-
-    /* Autofill stock field options */
-    useEffect(() => {
-        if (id === undefined || line !== undefined) {
-            setFieldValue('stocks', item?.stocks)
-        }
-    }, [id, item?.stocks, setFieldValue])
-
-    return (
-        <Inputs
-            listName={listName}
-            lineName={lineName}
-            remove={remove}
-            {...rest}
-        />
-    )
-}
-
-LineInputs.propTypes = {
-    id: PropTypes.string,
-    lineName: PropTypes.number,
-    remove: PropTypes.func,
-    listName: PropTypes.string,
-}
-
-const InvoiceItemsDetail = () => {
-    const form = Form.useFormInstance()
-    const lines = Form.useWatch('lines', form)
-    const { token } = theme.useToken()
-
-    const totals = useMemo(
-        () =>
-            lines?.reduce(
-                (acc, item) => ({
-                    total: acc.total + (item?.total ?? 0),
-                    addition: acc.addition + (item?.addition ?? 0),
-                    tax: acc.tax + (item?.tax ?? 0),
-                    discount: acc.discount + (item?.discount ?? 0),
-                    net: acc.net + (item?.net ?? 0),
-                }),
-                {
-                    total: 0,
-                    addition: 0,
-                    tax: 0,
-                    discount: 0,
-                    net: 0,
-                }
-            ),
-        [lines]
-    )
-
-    return (
-        <>
-            <Flex justify="end">
-                <Flex vertical gap={10}>
-                    <InputMoney
-                        value={totals?.total}
-                        readOnly
-                        addonBefore={<div style={{ width: 90 }}>جمع کل</div>}
-                    />
-
-                    <InputMoney
-                        value={totals?.addition}
-                        readOnly
-                        addonBefore={
-                            <div style={{ width: 90 }}>+ جمع اضافات</div>
-                        }
-                    />
-
-                    <InputMoney
-                        value={totals?.tax}
-                        readOnly
-                        addonBefore={
-                            <div style={{ width: 90 }}>+ جمع مالیات</div>
-                        }
-                    />
-                    <InputMoney
-                        value={totals?.discount}
-                        readOnly
-                        addonBefore={
-                            <div style={{ width: 90 }}>- جمع تخفیف</div>
-                        }
-                        status="error"
-                    />
-
-                    <Divider style={{ margin: 0 }} />
-                    <InputMoney
-                        value={totals?.net}
-                        readOnly
-                        addonBefore={
-                            <div style={{ width: 90 }}>= خالص فاکتور</div>
-                        }
-                        style={{ color: token.colorError }}
-                    />
-                </Flex>
-            </Flex>
-        </>
-    )
-}
-
-const Inputs = React.memo(({ listName, lineName, remove, ...rest }) => {
-    const form = Form.useFormInstance()
-    const { token } = theme.useToken()
-    const stocks = Form.useWatch([listName, lineName, 'stocks'], form)
-
-    /* TEMP COMMENT */
-    // useEffect(() => {
-    //     if (
-    //         helper.isValidValue(stockId) &&
-    //         helper.isValidValue(stocks) &&
-    //         !stocks?.some((option) => option.id === stockId)
-    //     ) {
-    //         form.setFieldValue([listName, lineName, 'stockId'], null)
-    //     }
-    // }, [form, lineName, listName, stockId, stocks])
-
-    return (
-        <Flex gap={10}>
-            <Flex
-                style={{
-                    height: 'fit-content',
-                }}
-            >
-                <Tag
-                    color={token.colorBgContainerDisabled}
-                    style={{
-                        border: `1px solid ${token.colorBorder}`,
-                        justifyContent: 'center',
-                        color: token.colorText,
-                        padding: 10,
-                        height: 25,
-                        width: 25,
-                    }}
-                >
-                    {lineName + 1}
-                </Tag>
-            </Flex>
-            <div
-                style={{
-                    display: 'grid',
-                    gridTemplateColumns: `repeat(11,minmax(160px, 1fr))`,
-                    gap: 10,
-                    flex: '1 1 auto',
-                }}
-            >
-                {/* id */}
-                <Form.Item {...rest} name={[lineName, 'id']} hidden noStyle>
-                    <Input type="number" />
-                </Form.Item>
-                {/* row */}
-                <Form.Item {...rest} name={[lineName, 'row']} hidden noStyle>
-                    <Input type="number" />
-                </Form.Item>
-
-                {/* item */}
-                <Form.Item
-                    {...rest}
-                    name={[lineName, 'itemId']}
-                    rules={[
-                        {
-                            required: true,
-                            message: 'فیلد کالا اجباریست',
-                        },
-                    ]}
-                    style={{ flex: '1 1 auto' }}
-                >
-                    <SelectItem
-                        style={{ maxWidth: 'calc(100% - 40px)' }}
-                        addonBefore={'کالا'}
-                        onLoad={(v, item) => {
-                            form.setFieldValue(
-                                [listName, lineName, 'item'],
-                                item
-                            )
-                        }}
-                        onItemChange={useCallback(
-                            () =>
-                                form.setFieldValue(
-                                    [listName, lineName, 'stockId'],
-                                    null
-                                ),
-                            [form, listName, lineName]
-                        )}
-                    />
-                </Form.Item>
-
-                {/* stock */}
-                <Form.Item
-                    {...rest}
-                    name={[lineName, 'stockId']}
-                    rules={[
-                        {
-                            required: true,
-                            message: 'فیلد انبار اجباریست',
-                        },
-                    ]}
-                    style={{ flex: '1 1 auto' }}
-                >
-                    <SelectStock
-                        style={{ maxWidth: 'calc(100% - 40px)' }}
-                        options={stocks}
-                        addonBefore={'انبار'}
-                        disabled={!stocks}
-                    />
-                </Form.Item>
-
-                {/* unit */}
-                <Form.Item
-                    {...rest}
-                    name={[lineName, 'unitId']}
-                    rules={[{ required: true }]}
-                    style={{ flex: '1 1 auto' }}
-                >
-                    <SelectType
-                        open={false}
-                        allowClear={false}
-                        endpoint={'/api/units'}
-                        suffixIcon={<TbScale />}
-                        readOnly
-                        addonBefore={<>واحد</>}
-                        resourceId={LOOKUP.UNIT}
-                    />
-                </Form.Item>
-                {/* qty */}
-                <Form.Item
-                    name={[lineName, 'quantity']}
-                    style={{
-                        flex: '1 1 auto',
-                    }}
-                    rules={[
-                        {
-                            required: true,
-                            message: 'فیلد مقدار اجباریست',
-                        },
-                        {
-                            validator: (_, v) =>
-                                v && v > 0
-                                    ? Promise.resolve(v)
-                                    : Promise.reject(
-                                          'مقدار وارد شده معتبر نیست'
-                                      ),
-                        },
-                    ]}
-                    {...rest}
-                >
-                    <InputNumber
-                        placeholder="مقدار ..."
-                        style={{ width: '100%' }}
-                        addonBefore={<>مقدار</>}
-                        min={0}
-                    />
-                </Form.Item>
-
-                {/* price */}
-                <Form.Item
-                    {...rest}
-                    name={[lineName, 'price']}
-                    initialValue={0}
-                    style={{
-                        flex: '1 1 auto',
-                    }}
-                    rules={[
-                        {
-                            required: true,
-                            message: 'فیلد مبلغ اجباریست',
-                        },
-                        {
-                            validator: (_, v) =>
-                                v > 0 && Number.isInteger(v)
-                                    ? Promise.resolve(v)
-                                    : Promise.reject(
-                                          'مبلغ باید بیشتر از صفر باشد'
-                                      ),
-                        },
-                    ]}
-                >
-                    <InputMoney
-                        placeholder="مبلغ ..."
-                        addonBefore={<>مبلغ</>}
-                        min={0}
-                    />
-                </Form.Item>
-                {/* discount */}
-                <Form.Item
-                    {...rest}
-                    name={[lineName, 'discount']}
-                    style={{
-                        flex: '1 1 auto',
-                    }}
-                    validateDebounce={1000}
-                    rules={[
-                        ({ getFieldValue }) => ({
-                            validator: (_, val) => {
-                                const q = getFieldValue([
-                                    listName,
-                                    lineName,
-                                    'tatal',
-                                ])
-                                const p = getFieldValue([
-                                    listName,
-                                    lineName,
-                                    'price',
-                                ])
-
-                                if (p === undefined || q === undefined)
-                                    return Promise.resolve(val)
-
-                                if (
-                                    Number.isInteger(val) &&
-                                    val >= 0 &&
-                                    val < q * p
-                                ) {
-                                    return Promise.resolve(val)
-                                } else {
-                                    return Promise.reject(
-                                        'مقدار وارد شده معتبر نیست'
-                                    )
-                                }
-                            },
-                        }),
-                    ]}
-                >
-                    <ItemDiscountInput
-                        listName={listName}
-                        lineName={lineName}
-                    />
-                </Form.Item>
-                {/* addition */}
-                <Form.Item
-                    {...rest}
-                    name={[lineName, 'addition']}
-                    style={{
-                        flex: '1 1 auto',
-                    }}
-                    validateDebounce={1000}
-                    initialValue={0}
-                    rules={[
-                        {
-                            required: true,
-                            message: 'فیلد اضافات اجباریست',
-                        },
-                        {
-                            validator: (_, v) =>
-                                v >= 0
-                                    ? Promise.resolve(v)
-                                    : Promise.reject(
-                                          'مقدار وارد شده معتبر نیست'
-                                      ),
-                        },
-                    ]}
-                >
-                    <AdditionInput listName={listName} lineName={lineName} />
-                </Form.Item>
-
-                {/* tax */}
-                <Form.Item
-                    {...rest}
-                    name={[lineName, 'tax']}
-                    style={{
-                        flex: '1 1 auto',
-                    }}
-                    validateDebounce={1000}
-                    rules={[
-                        ({ getFieldValue }) => ({
-                            validator: (_, val) => {
-                                const q = getFieldValue([
-                                    listName,
-                                    lineName,
-                                    'quantity',
-                                ])
-                                const p = getFieldValue([
-                                    listName,
-                                    lineName,
-                                    'price',
-                                ])
-
-                                if (
-                                    Number.isInteger(val) &&
-                                    val >= 0 &&
-                                    val < q * p
-                                ) {
-                                    return Promise.resolve(val)
-                                } else {
-                                    return Promise.reject(
-                                        'مقدار وارد شده معتبر نیست'
-                                    )
-                                }
-                            },
-                        }),
-                    ]}
-                >
-                    <InputMoney
-                        placeholder="مالیات ..."
-                        addonBefore={<>مالیات</>}
-                        min={0}
-                    />
-                </Form.Item>
-
-                {/* total */}
-                <Form.Item
-                    {...rest}
-                    name={[lineName, 'total']}
-                    style={{
-                        flex: '1 1 auto',
-                    }}
-                    validateDebounce={1000}
-                >
-                    <InputMoney
-                        placeholder="کل ..."
-                        readOnly
-                        addonBefore="کل"
-                    />
-                </Form.Item>
-                {/* net */}
-                <Form.Item
-                    {...rest}
-                    initialValue={0}
-                    name={[lineName, 'net']}
-                    style={{
-                        flex: '1 1 auto',
-                    }}
-                    validateDebounce={1000}
-                >
-                    <InputMoney
-                        placeholder="خالص ..."
-                        readOnly
-                        addonBefore={<>خالص</>}
-                    />
-                </Form.Item>
-                {/* description */}
-                <Form.Item
-                    {...rest}
-                    name={[lineName, 'description']}
-                    className="form-itm-txt-inp"
-                >
-                    <Input placeholder="توضیحات ..." addonBefore={'توضیحات'} />
-                </Form.Item>
-            </div>
-            {/* remove btn */}
-            <Form.Item>
-                <Button
-                    onClick={() => remove(lineName)}
-                    icon={<TbCircleMinus />}
-                />
-            </Form.Item>
-        </Flex>
-    )
-})
-
-Inputs.displayName = 'Inputs'
-
-Inputs.propTypes = {
-    listName: PropTypes.string,
-    lineName: PropTypes.number,
-    remove: PropTypes.func,
-}
+export default SelectItem
