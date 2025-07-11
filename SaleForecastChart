@@ -1,0 +1,108 @@
+import React, { useEffect, useState } from 'react'
+import ForecastChart from '../ForecastChart'
+import PropTypes from 'prop-types'
+import dayjs from 'dayjs'
+import ARIMAPromise from 'arima/async'
+import { Flex } from 'antd'
+
+// Load ARIMA library once and cache
+const arimaPromise = ARIMAPromise.then((ARIMA) => ARIMA)
+
+const SaleForecastChart = ({ data = [], filters = {}, forecastParams = {} }) => {
+  const [historicalData, setHistoricalData] = useState([])
+  const [predictedData, setPredictedData] = useState([])
+
+  useEffect(() => {
+    const { dateFrom, dateUntil } = filters
+    const { period } = forecastParams
+    if (!dateFrom || !dateUntil || !period) return
+
+    const start = dayjs(dateFrom)
+    const end = dayjs(dateUntil)
+    if (!start.isValid() || !end.isValid() || start.isAfter(end)) return
+
+    // parse period like "7_day" into [7, 'day']
+    const [stepValueStr, stepUnit] = period.split('_')
+    const stepValue = Number(stepValueStr)
+
+    // Sort data by date ascending
+    const sorted = [...data]
+      .map((d) => ({ ...d, date: dayjs(d.date) }))
+      .filter((d) => d.date.isValid())
+      .sort((a, b) => a.date - b.date)
+
+    // Build periods from start to end inclusive
+    const periods = []
+    let cursor = start.clone()
+    while (cursor.isBefore(end) || cursor.isSame(end)) {
+      periods.push(cursor.clone())
+      cursor = cursor.add(stepValue, stepUnit)
+    }
+
+    // Two-pointer accumulation
+    const newHistorical = []
+    let idx = 0
+    for (let i = 0; i < periods.length; i++) {
+      const periodStart = periods[i]
+      const periodEnd = periodStart.add(stepValue, stepUnit)
+      let sum = 0
+      while (idx < sorted.length && sorted[idx].date.isBefore(periodEnd)) {
+        if (sorted[idx].date.isSame(periodStart) || sorted[idx].date.isAfter(periodStart)) {
+          sum += sorted[idx].totalNetPrice || 0
+        }
+        idx++
+      }
+      newHistorical.push({
+        date: periodStart.format('YYYY-MM-DD'),
+        value: sum,
+      })
+    }
+
+    setHistoricalData(newHistorical)
+  }, [data, filters.dateFrom, filters.dateUntil, forecastParams.period])
+
+  useEffect(() => {
+    const { dateUntil } = filters
+    const { p, d, q, period } = forecastParams
+    if (!historicalData.length || !dateUntil || p == null || d == null || q == null || !period) return
+
+    let isActive = true
+    const end = dayjs(dateUntil)
+    const [stepValueStr, stepUnit] = period.split('_')
+    const stepValue = Number(stepValueStr)
+
+    arimaPromise.then((ARIMA) => {
+      if (!isActive) return
+      const ts = historicalData.map((pt) => pt.value)
+      const model = new ARIMA({ p, d, q, P: 0, D: 0, Q: 0, S: 0, verbose: false }).train(ts)
+      const [predictions] = model.predict(10)
+      if (!isActive) return
+
+      const newPredicted = predictions.map((pred, idx) => ({
+        date: end.add((idx + 1) * stepValue, stepUnit).format('YYYY-MM-DD'),
+        predict: pred,
+      }))
+      setPredictedData(newPredicted)
+    })
+
+    return () => {
+      isActive = false
+    }
+  }, [historicalData, filters.dateUntil, forecastParams.p, forecastParams.d, forecastParams.q, forecastParams.period])
+
+  return (
+    <Flex style={{ height: 400 }}>
+      <ForecastChart data={historicalData} predicts={predictedData} />
+    </Flex>
+  )
+}
+
+SaleForecastChart.propTypes = {
+  data: PropTypes.arrayOf(
+    PropTypes.shape({ date: PropTypes.string, totalNetPrice: PropTypes.number })
+  ),
+  filters: PropTypes.shape({ dateFrom: PropTypes.string, dateUntil: PropTypes.string }),
+  forecastParams: PropTypes.shape({ period: PropTypes.string, p: PropTypes.number, d: PropTypes.number, q: PropTypes.number }),
+}
+
+export default SaleForecastChart
