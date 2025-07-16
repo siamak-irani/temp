@@ -1,0 +1,136 @@
+/* Updated resources definitions and ResourcesFilter component */
+
+// -- resources.js --
+export const resources = [
+  { label: 'همه', value: 0, query: '' },
+  { label: 'سرنخ', value: LOOKUP.LEAD, query: '&leadIdNotNull=true' },
+  { label: 'فعالیت', value: LOOKUP.ACTIVITY, query: '&activityIdNotNull=true' },
+  { label: 'فرصت', value: LOOKUP.OPPORTUNITY, query: '&opportunityIdNotNull=true' },
+  { label: 'پروژه', value: LOOKUP.PROJECT, query: '&projectIdNotNull=true' },
+  { label: 'فاکتور', value: LOOKUP.INVOICE, query: '&invoiceIdNotNull=true' },
+  { label: 'پیش‌فاکتور', value: LOOKUP.QUOTE, query: '&quoteIdNotNull=true' },
+  { label: 'تیکت', value: LOOKUP.TICKET, query: '&ticketIdNotNull=true' },
+];
+
+// -- ResourcesFilter.js --
+import React, { useState } from 'react';
+import PropTypes from 'prop-types';
+import { Checkbox, Flex } from 'antd';
+import { resources } from './resources';
+
+const ResourcesFilter = ({ onChange }) => {
+  const [selected, setSelected] = useState([]);
+
+  const toggle = (value) => {
+    let next = [];
+    if (value === 0) {
+      // 'All' toggles off everything when selected again
+      next = selected.includes(0) ? [] : [0];
+    } else {
+      next = selected.includes(value)
+        ? selected.filter((v) => v !== value)
+        : [...selected.filter((v) => v !== 0), value];
+    }
+    setSelected(next);
+
+    // Build query: if 'all' selected or no items, empty query
+    if (next.includes(0) || next.length === 0) {
+      onChange('');
+    } else {
+      const q = next
+        .map((v) => resources.find((r) => r.value === v)?.query)
+        .filter(Boolean)
+        .join('');
+      onChange(q);
+    }
+  };
+
+  return (
+    <>
+      {resources.map((item) => (
+        <Flex key={item.value} gap={10} justify="space-between">
+          <span>{item.label}</span>
+          <Checkbox
+            checked={selected.includes(item.value)}
+            onChange={() => toggle(item.value)}
+          />
+        </Flex>
+      ))}
+    </>
+  );
+};
+
+ResourcesFilter.propTypes = {
+  onChange: PropTypes.func,
+};
+
+export default ResourcesFilter;
+//////////////////////////////////////////////////////////////////////////////
+
+
+import React, { useState } from 'react';
+import PropTypes from 'prop-types';
+import { Checkbox, Space } from 'antd';
+import { Flex } from 'antd'; // or your custom Flex wrapper
+import LOOKUP from '../../lookup';
+
+const resources = [
+  { label: 'همه',        value: 0,                       param: null },
+  { label: 'سرنخ',       value: LOOKUP.LEAD,            param: 'leadId' },
+  { label: 'فعالیت',     value: LOOKUP.ACTIVITY,        param: 'activityId' },
+  { label: 'فرصت',       value: LOOKUP.OPPORTUNITY,     param: 'opportunityId' },
+  { label: 'پروژه',      value: LOOKUP.PROJECT,         param: 'projectId' },
+  { label: 'فاکتور',     value: LOOKUP.INVOICE,         param: 'invoiceId' },
+  { label: 'پیش‌فاکتور', value: LOOKUP.QUOTE,           param: 'quoteId' },
+  { label: 'تیکت',       value: LOOKUP.TICKET,          param: 'ticketId' },
+];
+
+const ResourcesFilter = ({ onChange }) => {
+  const [selected, setSelected] = useState([]);
+
+  const toggle = (value) => {
+    let next;
+    if (value === 0) {
+      // toggle "همه" clears or selects only "all"
+      next = selected.includes(0) ? [] : [0];
+    } else {
+      // remove "all" if selecting any specific
+      const withoutAll = selected.filter((v) => v !== 0);
+      next = withoutAll.includes(value)
+        ? withoutAll.filter((v) => v !== value)
+        : [...withoutAll, value];
+    }
+    setSelected(next);
+
+    // build query: if none or "all" selected => empty
+    if (next.length === 0 || next.includes(0)) {
+      onChange('');
+    } else {
+      // for any resource NOT in selected => require NotNull
+      const parts = resources
+        .filter((r) => r.param && !next.includes(r.value))
+        .map((r) => `&${r.param}NotNull=true`);
+      onChange(parts.join(''));
+    }
+  };
+
+  return (
+    <Space direction="vertical" size="small">
+      {resources.map(({ label, value }) => (
+        <Flex key={value} justify="space-between" align="center">
+          <span>{label}</span>
+          <Checkbox
+            checked={selected.includes(value)}
+            onChange={() => toggle(value)}
+          />
+        </Flex>
+      ))}
+    </Space>
+  );
+};
+
+ResourcesFilter.propTypes = {
+  onChange: PropTypes.func.isRequired,
+};
+
+export default ResourcesFilter;
