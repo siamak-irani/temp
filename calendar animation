@@ -1,0 +1,169 @@
+### ایده‌ی کلیدی
+
+مشکل از اینجاست که انیمیشن با hover کنترل می‌شود و وقتی موس روی مرز دو پنل حرکت می‌کند، دو تا transition هم‌زمان یا پشت‌سر‌هم آغاز می‌شوند و layout مدام تغییر می‌کند. راه‌حل پایدار اینه که hover رو به “state” کنترل‌شده تبدیل کنیم و یک “قفل انیمیشن” بگذاریم: تا وقتی transition فعلی تمام نشده، انتخاب جدید اعمال نشه. یعنی یک state machine ساده با:
+- activeIndex: کدوم پنل الان بزرگه
+- isAnimating: آیا در حال انیمیشنیم
+- pendingIndex: آخرین پنلی که موس روش رفته ولی باید صبر کنه
+
+---
+
+### پیاده‌سازی سریع در React (با قفل + صف ساده)
+
+- فقط flex-grow رو transition بدید (نه shorthand flex).
+- رویداد pointerenter استفاده کنید تا لرزش کمتر بشه.
+- تا پایان انیمیشن، hover جدید تو pending نگه داشته می‌شه و بعد از اتمام، شروع می‌شه.
+
+```jsx
+import React, { useState, useRef, useCallback, useEffect } from "react";
+
+const DURATION = 300; // مدت انیمیشن ms
+
+export default function FlexLockingPanels({ items }) {
+  const [activeIndex, setActiveIndex] = useState(null);
+  const [isAnimating, setIsAnimating] = useState(false);
+  const pendingRef = useRef(null);
+  const timerRef = useRef(null);
+
+  const startTransition = useCallback((i) => {
+    setActiveIndex(i);
+    setIsAnimating(true);
+
+    // پایان انیمیشن را یا با transitionend مدیریت کنید یا با timeout
+    clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => {
+      setIsAnimating(false);
+      // اگر در طول انیمیشن پنل دیگری hover شد، حالا آغازش کن
+      const next = pendingRef.current;
+      pendingRef.current = null;
+      if (next != null && next !== i) {
+        startTransition(next);
+      }
+    }, DURATION);
+  }, []);
+
+  const handleEnter = (i) => {
+    // اگر در حال انیمیشنیم، فقط صف کن
+    if (isAnimating) {
+      pendingRef.current = i; // آخرین hover ذخیره می‌شود
+      return;
+    }
+    if (i !== activeIndex) {
+      startTransition(i);
+    }
+  };
+
+  const handleLeaveContainer = () => {
+    // اختیاری: وقتی موس از کل کانتینر خارج شد، برگردان به حالت اولیه
+    pendingRef.current = null;
+    // می‌توانید activeIndex را null کنید یا ثابت نگه دارید
+    // setActiveIndex(null);
+  };
+
+  useEffect(() => () => clearTimeout(timerRef.current), []);
+
+  return (
+    <div className="panels" onPointerLeave={handleLeaveContainer}>
+      {items.map((item, i) => (
+        <div
+          key={i}
+          className={`panel ${i === activeIndex ? "active" : ""}`}
+          onPointerEnter={() => handleEnter(i)}
+        >
+          {item}
+        </div>
+      ))}
+    </div>
+  );
+}
+```
+
+CSS پیشنهادی:
+
+```css
+.panels {
+  display: flex;
+  gap: 8px;                 /* فاصله‌ها را با gap بدهید تا area وسط childها hover نگیرد */
+  align-items: stretch;
+}
+
+.panel {
+  flex: 1 1 0;
+  min-width: 48px;          /* حداقل عرض برای جلوگیری از ناپدیدشدن ناگهانی زیر موس */
+  transition: flex-grow 300ms cubic-bezier(.2,.7,.2,1);
+  will-change: flex-grow;
+  /* برای کمک به ثبات رندر: */
+  contain: layout paint;    /* اختیاری؛ بسته به نیاز */
+}
+
+.panel.active {
+  flex-grow: 5;
+}
+```
+
+نکته: اگر می‌خواهید به‌جای timeout، دقیقاً پایان transition را بگیرید، می‌توانید روی container یا خود پنل‌ها onTransitionEnd بگذارید و فقط وقتی e.propertyName === 'flex-grow' بود unlock کنید. چون چند پنل هم‌زمان transition دارند، برای سادگی معمولاً همان timeout با مدت DURATION قابل اعتمادتر است، یا یک شمارنده‌ی پایان‌ها بسازید.
+
+---
+
+### ریزه‌کاری‌ها برای حذف “لرزش”
+
+- فقط flex-grow را transition بدهید، نه shorthand flex؛ shorthand قابل انیمیشن نیست و باعث رفتارهای غیرقابل‌پیش‌بینی می‌شود.
+- از onPointerEnter/onPointerLeave استفاده کنید (به‌جای mouseover/mouseout) تا bubbling اضافی نداشته باشید.
+- min-width یا padding داخلی بدهید تا زیر نشانگر موس “غیب” نشود و hover دائم جا‌به‌جا نشود.
+- gap استفاده کنید تا مرزها area مجزای hover نداشته باشند. اگر هنوز روی مرزها پرش دارید، می‌توانید کمی padding داخلی در پنل‌ها بدهید تا ناحیه‌ی hover پایدارتر شود.
+- اگر سرعت تغییر خیلی زیاده، DURATION را کمی بیشتر و easing را نرم‌تر کنید تا حس پرش کم شود.
+
+---
+
+### نسخه‌ی با transitionend (بدون timeout)
+
+اگر می‌خواهید دقیقا تا پایان transition صبر شود:
+
+```jsx
+const runningRef = useRef(0);
+
+const onTransitionEnd = (e) => {
+  if (e.propertyName !== "flex-grow") return;
+  // هر بار که یک پنل transition flex-grow را تمام می‌کند، شمارنده کم می‌شود
+  runningRef.current = Math.max(0, runningRef.current - 1);
+  if (runningRef.current === 0) {
+    setIsAnimating(false);
+    const next = pendingRef.current;
+    pendingRef.current = null;
+    if (next != null && next !== activeIndex) {
+      startTransition(next);
+    }
+  }
+};
+
+const startTransition = (i) => {
+  setActiveIndex(i);
+  setIsAnimating(true);
+  // برآورد کنید چند پنل قرار است تغییر کنند:
+  // معمولاً 1 پنل بزرگ می‌شود و 1 پنل کوچک؛ اگر حالت اولیه null نیست: 2
+  runningRef.current = 2; // یا داینامیک بسازید
+};
+
+// ...
+
+<div className="panels" onTransitionEnd={onTransitionEnd}>
+  {items.map((item, i) => (
+    <div key={i}
+         className={`panel ${i === activeIndex ? "active" : ""}`}
+         onPointerEnter={() => handleEnter(i)}>
+      {item}
+    </div>
+  ))}
+</div>
+```
+
+اگر تعداد پنل‌هایی که واقعاً تغییر می‌کنند متغیره، می‌توانید قبل از setActiveIndex بررسی کنید کدام‌ها flex-grow شان تغییر خواهد کرد و شمارنده را بر همان اساس تنظیم کنید، یا ساده‌تر همان timeout را نگه دارید.
+
+---
+
+### اگر بخواهیم کاملاً بدون state عمل کنیم (CSS-only)
+
+CSS به‌تنهایی نمی‌تواند “صف انیمیشن” بسازد یا hover بعدی را تا پایان قبلی قفل کند. حتی با :has هم فقط می‌توانید حالت‌ها را شرطی کنید، نه ترتیب زمانی. پس برای نیاز شما، کنترل state در React ضروری است.
+
+---
+
+اگر نمونه‌ی کد شما را بفرستید، می‌تونم دقیقاً روی همون ساختار اعمالش کنم و نسبت‌ها، duration و eventها را تنظیم کنم که با UI شما در تَبریز دقیق و بی‌لرزش کار کنه.
