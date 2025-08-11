@@ -1,0 +1,99 @@
+import { marked } from "marked";
+
+// گرفتن renderer پیش‌فرض
+const defaultRenderer = new marked.Renderer();
+
+// ساخت renderer سفارشی
+const customRenderer = new marked.Renderer();
+
+function addDirectionToTag(original, tag, text) {
+  const isRTL = /[\u0600-\u06FF]/.test(text);
+  return original.replace(`<${tag}`, `<${tag} dir="${isRTL ? "rtl" : "ltr"}"`);
+}
+
+// دستکاری عناصر مختلف
+customRenderer.paragraph = function (text) {
+  const original = defaultRenderer.paragraph(text);
+  return addDirectionToTag(original, "p", text);
+};
+
+customRenderer.heading = function (text, level) {
+  const original = defaultRenderer.heading(text, level);
+  return addDirectionToTag(original, `h${level}`, text);
+};
+
+customRenderer.blockquote = function (quote) {
+  const original = defaultRenderer.blockquote(quote);
+  return addDirectionToTag(original, "blockquote", quote);
+};
+
+customRenderer.list = function (body, ordered) {
+  const tag = ordered ? "ol" : "ul";
+  const original = defaultRenderer.list(body, ordered);
+  return addDirectionToTag(original, tag, body);
+};
+
+// اعمال renderer سفارشی
+marked.setOptions({ renderer: customRenderer });
+
+
+
+////////////////////////////////////////////////////////////
+
+بله دقیقاً! از نسخه ۵.۱۲ به بعد، Ant Design به‌طور رسمی از **CSS Variables** برای توکن‌های طراحی پشتیبانی می‌کنه. این یعنی می‌تونی مستقیماً در فایل‌های CSS از متغیرهایی مثل رنگ‌ها، فونت‌ها، فاصله‌ها و ... استفاده کنی بدون نیاز به LESS یا JavaScript.
+
+---
+
+### 🎯 مثال‌هایی از متغیرهای CSS در Ant Design
+
+بعد از فعال‌سازی حالت CSS Variable، می‌تونی از این متغیرها استفاده کنی:
+
+```css
+:root {
+  --ant-color-primary: #1677ff;
+  --ant-font-size: 14px;
+  --ant-padding-content-horizontal: 16px;
+}
+```
+
+و در فایل CSS:
+
+```css
+.button {
+  background-color: var(--ant-color-primary);
+  font-size: var(--ant-font-size);
+  padding: 0 var(--ant-padding-content-horizontal);
+}
+```
+
+---
+
+### ⚙️ فعال‌سازی CSS Variables در پروژه React
+
+برای فعال‌سازی این قابلیت، باید در `ConfigProvider` تنظیمات زیر رو اعمال کنی:
+
+```tsx
+import { ConfigProvider } from 'antd';
+
+<ConfigProvider
+  theme={{
+    cssVar: true, // فعال‌سازی CSS Variables
+    hashed: false // اختیاری: حذف هش برای کاهش حجم
+  }}
+>
+  <App />
+</ConfigProvider>
+```
+
+---
+
+### 📌 نکات مهم
+
+- متغیرها با پیشوند `--ant-` تعریف می‌شن.
+- می‌تونی با `prefix` دلخواه هم تنظیمشون کنی.
+- این قابلیت باعث می‌شه تغییر تم‌ها سریع‌تر و سبک‌تر باشه.
+- در نسخه ۶، استفاده از CSS Variables حتی گسترده‌تر شده و عملکرد بهتری داره.
+
+---
+
+اگه بخوای لیست کامل متغیرهای قابل استفاده یا نحوه override کردنشون رو بدونی، خوشحال می‌شم برات دربیارم. دوست داری؟ 😄
