@@ -1,244 +1,537 @@
-خیلی عالی 👌
-پس من هر دو فایل رو بر اساس همون نسخه جدیدی که فرستادی بازنویسی می‌کنم، با این تفاوت‌ها:
-
-* **CategoryCascader.jsx**
-
-  * تمیز و ساده نگه داشته میشه (مثل کدی که خودت دادی).
-  * `loading` برای lazy load اضافه می‌کنم (UX بهتر).
-  * `error handling` هم اضافه میشه.
-  * flat شدن بعد سرچ حفظ میشه (همون‌طور که گفتی مشکلی نداره).
-
-* **SelectCategory.jsx**
-
-  * فقط wrapper هست، پس ساده و خوانا نگه می‌دارمش.
-  * قابلیت اضافه‌کردن دسته جدید (Modal + Plus button) حفظ میشه.
-  * امکان پاس دادن `customOptions` هم لحاظ میشه.
+باشه 👌 من دو نسخه از `onDrop` برات می‌نویسم:
 
 ---
 
-## 📂 `CategoryCascader.jsx`
+## 🔹 نسخه ۱: منطق قدیمی (بازنویسی کل displayOrder)
 
-```jsx
-import { Cascader } from 'antd'
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import PropTypes from 'prop-types'
-import api from '../axios-proxy'
-import debounce from 'lodash.debounce'
+این همون چیزیه که تو داشتی → کل بچه‌های parent دوباره `displayOrder` می‌گیرن.
 
-// Helper: ساخت نود استاندارد
-function normalizeItem(item) {
-  return {
-    key: item.id,
-    value: item.id,
-    label: item.title,
-    isLeaf: false,
-    ...item,
-  }
-}
+```js
+const onDrop = useCallback(
+    (info) => {
+        const dropKey = info.node.key
+        const dragKey = info.dragNode.key
+        const dropPos = info.node.pos.split('-')
+        const dropPosition =
+            info.dropPosition - Number(dropPos[dropPos.length - 1])
 
-// Helper: ساخت درخت از داده‌های flat
-function buildTree(data) {
-  const map = new Map()
-  const tree = []
+        const loop = (data, key, callback) => {
+            for (let i = 0; i < data.length; i++) {
+                if (data[i].key === key) {
+                    return callback(data[i], i, data)
+                }
+                if (data[i].children) {
+                    loop(data[i].children, key, callback)
+                }
+            }
+        }
 
-  data.forEach((item) => {
-    map.set(item.id, { ...normalizeItem(item), children: [] })
-  })
+        const dataCopy = [...gData]
+        let dragObj
 
-  data.forEach((item) => {
-    if (item.parentId && map.has(item.parentId)) {
-      map.get(item.parentId).children.push(map.get(item.id))
-    } else if (!item.parentId) {
-      tree.push(map.get(item.id))
-    }
-  })
-
-  return tree
-}
-
-const CategoryCascader = ({ value, onChange, endpoint, customOptions = [], ...rest }) => {
-  const [options, setOptions] = useState([])
-  const [loadingKeys, setLoadingKeys] = useState([])
-
-  // --- API Caller ---
-  const fetchData = useCallback(
-    async ({ id, parentId, searchAll, search }) => {
-      try {
-        const url =
-          typeof endpoint === 'function'
-            ? endpoint({
-                id,
-                parentId,
-                query: search ? `&titleContains=${search}` : '',
-                searchAll,
-              })
-            : endpoint
-
-        const res = await api.get(url)
-        const sortedData = res.data.items?.sort(
-          (a, b) => a.displayOrder - b.displayOrder
-        ) ?? []
-
-        return sortedData.map(normalizeItem)
-      } catch (err) {
-        console.error('❌ fetchData error:', err)
-        return []
-      }
-    },
-    [endpoint]
-  )
-
-  // --- Search handler ---
-  const handleSearch = useMemo(
-    () =>
-      debounce((q) => {
-        fetchData({ searchAll: true, search: q }).then((res) => {
-          setOptions(res) // flat list برای جستجو
+        loop(dataCopy, dragKey, (item, index, arr) => {
+            arr.splice(index, 1)
+            dragObj = item
         })
-      }, 500),
-    [fetchData]
-  )
 
-  // --- مقدار اولیه: لود ریشه‌ها ---
-  useEffect(() => {
-    fetchData({ parentId: null }).then((data) => {
-      setOptions(buildTree([...customOptions, ...data]))
-    })
-  }, [fetchData, customOptions])
+        let updatedParentChildren = []
+        let parentKey = null
 
-  // --- بارگذاری Lazy children ---
-  const loadData = (selectedOptions) => {
-    const target = selectedOptions[selectedOptions.length - 1]
-    setLoadingKeys((prev) => [...prev, target.key])
+        if (!info.dropToGap) {
+            loop(dataCopy, dropKey, (item) => {
+                item.children = item.children || []
+                item.children.unshift(dragObj)
+                updatedParentChildren = item.children
+                parentKey = item.key
+            })
+        } else {
+            let ar = []
+            let i
+            loop(dataCopy, dropKey, (_item, index, arr) => {
+                ar = arr
+                i = index
+            })
+            if (dropPosition === -1) {
+                ar.splice(i, 0, dragObj)
+            } else {
+                ar.splice(i + 1, 0, dragObj)
+            }
 
-    fetchData({ parentId: target.key })
-      .then((children) => {
-        setOptions((prev) =>
-          children?.length ? buildTree([...prev, ...children]) : prev
-        )
-      })
-      .finally(() => {
-        setLoadingKeys((prev) => prev.filter((k) => k !== target.key))
-      })
-  }
+            const findParentKey = (data, childKey) => {
+                let result = null
+                const search = (nodes, parent = null) => {
+                    for (const node of nodes) {
+                        if (node.key === childKey) {
+                            result = parent
+                            return
+                        }
+                        if (node.children) {
+                            search(node.children, node.key)
+                        }
+                    }
+                }
+                search(data)
+                return result
+            }
 
-  return (
-    <Cascader
-      value={value}
-      options={options}
-      loadData={loadData}
-      onChange={onChange}
-      onSearch={handleSearch}
-      changeOnSelect
-      autoClearSearchValue
-      showSearch
-      loading={loadingKeys.length > 0}
-      {...rest}
-    />
-  )
-}
+            parentKey = findParentKey(dataCopy, dragObj.key)
 
-CategoryCascader.propTypes = {
-  value: PropTypes.array,
-  onChange: PropTypes.func,
-  endpoint: PropTypes.oneOfType([PropTypes.string, PropTypes.func]).isRequired,
-  customOptions: PropTypes.array,
-}
+            const getChildren = (data, key) => {
+                let children = []
+                loop(data, key, (item) => {
+                    children = item.children || []
+                })
+                return children
+            }
 
-export default CategoryCascader
-```
+            updatedParentChildren = parentKey
+                ? getChildren(dataCopy, parentKey)
+                : dataCopy
+        }
 
----
+        if (dragObj) {
+            dragObj.parentId =
+                parentKey !== null ? parseInt(parentKey, 10) : null
+        }
 
-## 📂 `SelectCategory.jsx`
+        const prevOrderMap = new Map()
+        updatedParentChildren.forEach((item) => {
+            if (item) {
+                prevOrderMap.set(item.key, item.displayOrder ?? 0)
+            }
+        })
 
-```jsx
-import { Button, Space } from 'antd'
-import PropTypes from 'prop-types'
-import { useCallback, useState } from 'react'
-import { TbPlus } from 'react-icons/tb'
-import CategoryModal from './CategoryModal'
-import CategoryCascader from './CategoryCascader'
+        const sortedOrder = updatedParentChildren
+            .map((item) => item?.displayOrder ?? 0)
+            .sort((a, b) => b - a)
 
-const SelectCategory = ({
-  id,
-  value,
-  onChange,
-  mode = null,
-  placeholder = 'انتخاب دسته‌بندی',
-  ownerResourceId,
-  customOptions = [],
-}) => {
-  const [hasModal, setHasModal] = useState(false)
+        const changedItems = []
+        updatedParentChildren.forEach((item, index) => {
+            if (item) {
+                const oldOrder = prevOrderMap.get(item.key)
+                item.displayOrder = sortedOrder[index]
+                if (item.displayOrder !== oldOrder) {
+                    changedItems.push({
+                        ...item,
+                    })
+                }
+            }
+        })
 
-  const endpoint = useCallback(
-    ({ parentId, id, query, searchAll }) => {
-      const parentQuery =
-        searchAll || id
-          ? ''
-          : parentId
-            ? `&parentIdEqualsTo=${parentId}`
-            : '&parentIdIsNull=true'
+        if (dragObj) {
+            changedItems.push({
+                ...dragObj,
+            })
+        }
 
-      return `/api/categories?ownerResourceIdEqualsTo=${ownerResourceId}${
-        id ? `&idEqualsTo=${id}` : ''
-      }${parentQuery}${query}`
+        setGData(dataCopy)
+        onItemChange?.(changedItems)
     },
-    [ownerResourceId]
-  )
-
-  return (
-    <div id={id} style={{ width: '100%' }}>
-      <Space.Compact block>
-        <CategoryCascader
-          value={value}
-          onChange={onChange}
-          endpoint={endpoint}
-          placeholder={placeholder}
-          customOptions={customOptions}
-          multiple={mode === 'multiple'}
-        />
-        <Button icon={<TbPlus />} onClick={() => setHasModal(true)} />
-      </Space.Compact>
-
-      <CategoryModal
-        open={hasModal}
-        ownerResourceId={ownerResourceId}
-        onClose={() => setHasModal(false)}
-      />
-    </div>
-  )
-}
-
-SelectCategory.propTypes = {
-  id: PropTypes.string,
-  value: PropTypes.any,
-  mode: PropTypes.string,
-  onChange: PropTypes.func,
-  placeholder: PropTypes.string,
-  customOptions: PropTypes.array,
-  ownerResourceId: PropTypes.number.isRequired,
-}
-
-export default SelectCategory
+    [gData, onItemChange, setGData]
+)
 ```
 
 ---
 
-## ✨ تغییرات کلیدی
+## 🔹 نسخه ۲: منطق جدید (فقط swap کردن displayOrder)
 
-1. **CategoryCascader**
+اینجا فقط دو آیتمی که جابه‌جا میشن `displayOrder`شون با هم تعویض میشه.
 
-   * اضافه شدن **loading indicator** برای UX بهتر.
-   * اضافه شدن **error handling** در `fetchData`.
-   * کد تمیزتر و ساده‌تر.
+```js
+const onDrop = useCallback(
+    (info) => {
+        const dropKey = info.node.key
+        const dragKey = info.dragNode.key
+        const dropPos = info.node.pos.split('-')
+        const dropPosition =
+            info.dropPosition - Number(dropPos[dropPos.length - 1])
 
-2. **SelectCategory**
+        const loop = (data, key, callback) => {
+            for (let i = 0; i < data.length; i++) {
+                if (data[i].key === key) {
+                    return callback(data[i], i, data)
+                }
+                if (data[i].children) {
+                    loop(data[i].children, key, callback)
+                }
+            }
+        }
 
-   * ساده‌سازی و خوانایی بهتر.
-   * `multiple` به صورت مستقیم از `mode` گرفته میشه.
-   * `placeholder` پیش‌فرض گذاشته شده.
+        const dataCopy = [...gData]
+        let dragObj
+
+        loop(dataCopy, dragKey, (item, index, arr) => {
+            arr.splice(index, 1)
+            dragObj = item
+        })
+
+        let updatedParentChildren = []
+        let parentKey = null
+
+        if (!info.dropToGap) {
+            loop(dataCopy, dropKey, (item) => {
+                item.children = item.children || []
+                item.children.unshift(dragObj)
+                updatedParentChildren = item.children
+                parentKey = item.key
+            })
+        } else {
+            let ar = []
+            let i
+            loop(dataCopy, dropKey, (_item, index, arr) => {
+                ar = arr
+                i = index
+            })
+            if (dropPosition === -1) {
+                ar.splice(i, 0, dragObj)
+            } else {
+                ar.splice(i + 1, 0, dragObj)
+            }
+
+            const findParentKey = (data, childKey) => {
+                let result = null
+                const search = (nodes, parent = null) => {
+                    for (const node of nodes) {
+                        if (node.key === childKey) {
+                            result = parent
+                            return
+                        }
+                        if (node.children) {
+                            search(node.children, node.key)
+                        }
+                    }
+                }
+                search(data)
+                return result
+            }
+
+            parentKey = findParentKey(dataCopy, dragObj.key)
+
+            const getChildren = (data, key) => {
+                let children = []
+                loop(data, key, (item) => {
+                    children = item.children || []
+                })
+                return children
+            }
+
+            updatedParentChildren = parentKey
+                ? getChildren(dataCopy, parentKey)
+                : dataCopy
+        }
+
+        if (dragObj) {
+            dragObj.parentId =
+                parentKey !== null ? parseInt(parentKey, 10) : null
+        }
+
+        const changedItems = []
+
+        // پیدا کردن آیتمی که با dragObj جابه‌جا شده
+        const oldIndex = updatedParentChildren.findIndex(
+            (item) => item.key === dragObj.key
+        )
+        const newIndex = updatedParentChildren.indexOf(dragObj)
+
+        if (
+            oldIndex !== -1 &&
+            newIndex !== -1 &&
+            oldIndex !== newIndex
+        ) {
+            const oldItem = updatedParentChildren[oldIndex]
+            const newItem = updatedParentChildren[newIndex]
+
+            // swap کردن displayOrder
+            const tempOrder = oldItem.displayOrder
+            oldItem.displayOrder = newItem.displayOrder
+            newItem.displayOrder = tempOrder
+
+            changedItems.push({ ...oldItem })
+            changedItems.push({ ...newItem })
+        }
+
+        setGData(dataCopy)
+        onItemChange?.(changedItems)
+    },
+    [gData, onItemChange, setGData]
+)
+```
 
 ---
 
-می‌خوای من یه **دموی کوچک** هم درست کنم (مثلاً یه صفحه تست) که این دو کامپوننت رو کنار هم نشون بده تا راحت‌تر بتونی تست کنی؟
+⚖️ حالا تو می‌تونی تصمیم بگیری:
+
+* اگه سرور انتظار داره **کل ترتیب بازنویسی بشه** → نسخه ۱.
+* اگه فقط **swap بین دو آیتم متوالی** لازمه → نسخه ۲.
+
+می‌خوای من نسخه ۲ رو طوری گسترش بدم که وقتی آیتم بین دو parent مختلف جابه‌جا میشه هم مقدار `displayOrder` درست ست بشه (مثلاً بین مقادیر همسایه‌ها محاسبه بشه)؟
+
+//////////////////////////////////////////////
+
+//////////////////////////////////////////////////////////////////////////////////
+
+خیلی دقیق نگاه کردم. 👇
+
+### مشکل اصلی (تکرار والد وقتی گره رو بیرون می‌کشیم)
+
+دلیل این‌که وقتی یک نود رو می‌کشی داخل یک نود دیگه (به‌عنوان فرزند) و دوباره بیرون می‌کشی ازش یک **کپی از والد ایجاد میشه**، این بخشه:
+
+```js
+if (!info.dropToGap) {
+    loop(data, dropKey, (item) => {
+        item.children = item.children || []
+        item.children.unshift(dragObj)
+        updatedParentChildren = item.children
+        parentKey = item.key
+    })
+}
+```
+
+اینجا:
+
+* وقتی یک گره میره داخل یک نود دیگه، اون نود به‌زور `children = item.children || []` می‌گیره.
+* بعد `dragObj` با `unshift` میره داخلش.
+* اما وقتی دوباره بیرون می‌کشیش، چون `children` برای اون نود **ایجاد شده و خالی نمی‌شه**، همچنان وجود داره.
+* و بعد توی تابع `findParentKey` وقتی دنبال parent می‌گردی، بعضی وقت‌ها نود خودش هم به‌عنوان parent شناسایی میشه (به خاطر children اضافه‌شده).
+
+یعنی عملاً یک ساختار درختی ناخواسته درست میشه که توش **خود گره یا والدش دوباره کپی میشه**.
+
+### مشکلات دیگه‌ای که دیدم
+
+1. **عدم توقف در `loop`:**
+   در `loop` وقتی نود مورد نظر پیدا شد و `callback` صدا زده شد، هیچ `return` کلی وجود نداره. این باعث میشه جستجو ادامه بده و ممکنه چند بار `dragObj` جابه‌جا بشه یا parent اشتباه پیدا بشه.
+
+   راه‌حل: بعد از پیدا کردن و اجرای `callback` باید `return true` بزنی و توی لایه‌های بالاتر هم اگه `true` برگشت، سریع متوقف بشه.
+
+   ```js
+   const loop = (data, key, callback) => {
+       for (let i = 0; i < data.length; i++) {
+           if (data[i].key === key) {
+               callback(data[i], i, data)
+               return true
+           }
+           if (data[i].children && loop(data[i].children, key, callback)) {
+               return true
+           }
+       }
+       return false
+   }
+   ```
+
+2. **`parseInt(parentKey)` روی `null`:**
+   وقتی parent وجود نداشته باشه (مثلاً نود توی ریشه باشه)، `parentKey = null` میشه و بعد `parseInt(null)` مقدار `NaN` میده.
+   بهتره قبل از تغییر `dragObj.parentId` بررسی کنی:
+
+   ```js
+   if (dragObj && parentKey !== null) {
+       dragObj.parentId = parseInt(parentKey, 10)
+   } else {
+       dragObj.parentId = null
+   }
+   ```
+
+3. **اشتباه در مرتب‌سازی `displayOrder`:**
+   این قسمت:
+
+   ```js
+   const sortedOrder = updatedParentChildren
+       .map((item) => item?.displayOrder ?? 0)
+       .sort((a, b) => b - a)
+   ```
+
+   داره همه‌ی displayOrderها رو جداگونه sort می‌کنه (نزولی)، بعدش دوباره به ترتیب index به نودها می‌چسبونه.
+   این باعث میشه ترتیب بصری درخت **همیشه نزولی بشه** حتی اگه جابه‌جایی جزئی انجام داده باشی.
+
+   درست‌تر اینه که `updatedParentChildren` رو مستقیماً طبق index بچینیم، نه اینکه مقدارها رو جدا کنیم و دوباره بچسبونیم. یعنی به‌جای `sortedOrder` میشه همین index رو به‌عنوان order جدید گذاشت.
+
+   ```js
+   updatedParentChildren.forEach((item, index) => {
+       if (item) {
+           const oldOrder = prevOrderMap.get(item.key)
+           item.displayOrder = index
+           if (item.displayOrder !== oldOrder) {
+               changedItems.push({...item})
+           }
+       }
+   })
+   ```
+
+---
+
+### جمع‌بندی
+
+* مشکل اصلی: `children = item.children || []` باعث ایجاد نودهای تکراری میشه → باید درست مدیریت بشه.
+* `loop` باید متوقف بشه تا recursive جستجو parent رو چند بار پیدا نکنه.
+* `parentId` نباید روی `NaN` ست بشه.
+* `displayOrder` اشتباه محاسبه میشه (ترتیب واقعی درخت رو بهم می‌زنه).
+
+---
+
+می‌خوای من نسخه‌ی اصلاح‌شده‌ی `onDrop` رو برات بازنویسی کنم که این مشکلات حل بشن؟
+
+
+///////////////////////////////////////////////////////////////////////////////////
+
+
+import PropTypes from 'prop-types'
+import DynamicTree from './DynamicTree'
+import { useCallback } from 'react'
+
+const DraggableTree = ({
+    gData,
+    setGData,
+    loader,
+    data,
+    onItemChange,
+    loadedKeys,
+    onLoadKeys,
+    ...rest
+}) => {
+    const onDrop = useCallback(
+        (info) => {
+            const dropKey = info.node.key
+            const dragKey = info.dragNode.key
+            const dropPos = info.node.pos.split('-')
+            const dropPosition =
+                info.dropPosition - Number(dropPos[dropPos.length - 1])
+
+            const loop = (data, key, callback) => {
+                for (let i = 0; i < data.length; i++) {
+                    if (data[i].key === key) {
+                        return callback(data[i], i, data)
+                    }
+                    if (data[i].children) {
+                        loop(data[i].children, key, callback)
+                    }
+                }
+            }
+
+            const dataCopy = [...gData]
+            let dragObj
+
+            loop(dataCopy, dragKey, (item, index, arr) => {
+                arr.splice(index, 1)
+                dragObj = item
+            })
+
+            let updatedParentChildren = []
+            let parentKey = null
+
+            if (!info.dropToGap) {
+                loop(dataCopy, dropKey, (item) => {
+                    item.children = item.children || []
+                    item.children.unshift(dragObj)
+                    updatedParentChildren = item.children
+                    parentKey = item.key
+                })
+            } else {
+                let ar = []
+                let i
+                loop(dataCopy, dropKey, (_item, index, arr) => {
+                    ar = arr
+                    i = index
+                })
+                if (dropPosition === -1) {
+                    ar.splice(i, 0, dragObj)
+                } else {
+                    ar.splice(i + 1, 0, dragObj)
+                }
+
+                const findParentKey = (data, childKey) => {
+                    let result = null
+                    const search = (nodes, parent = null) => {
+                        for (const node of nodes) {
+                            if (node.key === childKey) {
+                                result = parent
+                                return
+                            }
+                            if (node.children) {
+                                search(node.children, node.key)
+                            }
+                        }
+                    }
+                    search(data)
+                    return result
+                }
+
+                parentKey = findParentKey(dataCopy, dragObj.key)
+
+                const getChildren = (data, key) => {
+                    let children = []
+                    loop(data, key, (item) => {
+                        children = item.children || []
+                    })
+                    return children
+                }
+
+                updatedParentChildren = parentKey
+                    ? getChildren(dataCopy, parentKey)
+                    : dataCopy
+            }
+
+            // جلوگیری از NaN
+            if (dragObj) {
+                dragObj.parentId =
+                    parentKey !== null ? parseInt(parentKey, 10) : null
+            }
+
+            const prevOrderMap = new Map()
+            updatedParentChildren.forEach((item) => {
+                if (item) {
+                    prevOrderMap.set(item.key, item.displayOrder ?? 0)
+                }
+            })
+
+            const changedItems = []
+            updatedParentChildren.forEach((item, index) => {
+                if (item) {
+                    const oldOrder = prevOrderMap.get(item.key)
+                    item.displayOrder = index
+                    if (item.displayOrder !== oldOrder) {
+                        changedItems.push({
+                            ...item,
+                        })
+                    }
+                }
+            })
+
+            if (dragObj) {
+                changedItems.push({
+                    ...dragObj,
+                })
+            }
+
+            setGData(dataCopy)
+            onItemChange?.(changedItems)
+        },
+        [gData, onItemChange, setGData]
+    )
+
+    return (
+        <DynamicTree
+            className="draggable-tree"
+            loader={loader}
+            data={data}
+            draggable
+            blockNode
+            onDrop={onDrop}
+            treeData={gData}
+            onLoad={setGData}
+            loadedKeys={loadedKeys}
+            onLoadKeys={onLoadKeys}
+            {...rest}
+        />
+    )
+}
+
+DraggableTree.propTypes = {
+    loader: PropTypes.func,
+    gData: PropTypes.array,
+    data: PropTypes.array,
+    setGData: PropTypes.func,
+    onItemChange: PropTypes.func,
+    loadedKeys: PropTypes.array,
+    onLoadKeys: PropTypes.func,
+}
+
+export default DraggableTree
