@@ -1,108 +1,363 @@
-import React, { useEffect, useState } from 'react'
-import ForecastChart from '../ForecastChart'
-import PropTypes from 'prop-types'
-import dayjs from 'dayjs'
-import ARIMAPromise from 'arima/async'
-import { Flex } from 'antd'
+const tree = {
+    id: 'f93907ba006',
+    combinator: 'and',
+    rules: [
+        {
+            field: 'Contact',
+            id: '5af93907ba0',
+            operator: 'Any',
+            match: {
+                mode: 'some',
+                threshold: 1,
+            },
+            value: {
+                id: 'af93907ba00',
+                rules: [
+                    {
+                        field: 'Contact',
+                        id: '09c8c8e52f8',
+                        operator: '=',
+                        valueSource: 'value',
+                        value: {
+                            id: '9c8c8e52f8c',
+                            rules: [
+                                {
+                                    field: 'Id',
+                                    id: 'b09c8c8e52f',
+                                    operator: '==',
+                                    valueSource: 'value',
+                                    value: '1',
+                                },
+                            ],
+                            combinator: 'and',
+                            not: false,
+                        },
+                        match: {
+                            mode: 'some',
+                            threshold: 1,
+                        },
+                    },
+                    {
+                        field: 'Contact',
+                        id: '27a5af93907',
+                        operator: 'Any',
+                        match: {
+                            mode: 'some',
+                            threshold: 1,
+                        },
+                        value: {
+                            id: '7a5af93907b',
+                            rules: [
+                                {
+                                    field: 'Contact',
+                                    id: '52f8c232b92',
+                                    operator: '=',
+                                    valueSource: 'value',
+                                    value: {
+                                        id: '2f8c232b927',
+                                        rules: [
+                                            {
+                                                field: 'Person',
+                                                id: '8e52f8c232b',
+                                                operator: '=',
+                                                valueSource: 'value',
+                                                value: {
+                                                    id: 'e52f8c232b9',
+                                                    rules: [
+                                                        {
+                                                            field: 'NaturalPerson',
+                                                            id: '8c8e52f8c23',
+                                                            operator: '=',
+                                                            valueSource:
+                                                                'value',
+                                                            value: {
+                                                                id: 'c8e52f8c232',
+                                                                rules: [
+                                                                    {
+                                                                        field: 'FullName',
+                                                                        id: 'c8c8e52f8c2',
+                                                                        operator:
+                                                                            '==',
+                                                                        valueSource:
+                                                                            'value',
+                                                                        value: 'someone',
+                                                                    },
+                                                                ],
+                                                                combinator:
+                                                                    'and',
+                                                                not: false,
+                                                            },
+                                                            match: {
+                                                                mode: 'some',
+                                                                threshold: 1,
+                                                            },
+                                                        },
+                                                    ],
+                                                    combinator: 'and',
+                                                    not: false,
+                                                },
+                                                match: {
+                                                    mode: 'some',
+                                                    threshold: 1,
+                                                },
+                                            },
+                                        ],
+                                        combinator: 'and',
+                                        not: false,
+                                    },
+                                    match: {
+                                        mode: 'some',
+                                        threshold: 1,
+                                    },
+                                },
+                                {
+                                    field: 'Contact',
+                                    id: '2b927a5af93',
+                                    operator: '=',
+                                    valueSource: 'value',
+                                    value: {
+                                        id: 'b927a5af939',
+                                        rules: [
+                                            {
+                                                field: 'Person',
+                                                id: '232b927a5af',
+                                                operator: '=',
+                                                valueSource: 'value',
+                                                value: {
+                                                    id: '32b927a5af9',
+                                                    rules: [
+                                                        {
+                                                            field: 'NaturalPerson',
+                                                            id: '8c232b927a5',
+                                                            operator: '=',
+                                                            valueSource:
+                                                                'value',
+                                                            value: {
+                                                                id: 'c232b927a5a',
+                                                                rules: [
+                                                                    {
+                                                                        field: 'Number',
+                                                                        id: 'f8c232b927a',
+                                                                        operator:
+                                                                            '==',
+                                                                        valueSource:
+                                                                            'value',
+                                                                        value: '1',
+                                                                    },
+                                                                ],
+                                                                combinator:
+                                                                    'and',
+                                                                not: false,
+                                                            },
+                                                            match: {
+                                                                mode: 'some',
+                                                                threshold: 1,
+                                                            },
+                                                        },
+                                                    ],
+                                                    combinator: 'and',
+                                                    not: false,
+                                                },
+                                                match: {
+                                                    mode: 'some',
+                                                    threshold: 1,
+                                                },
+                                            },
+                                        ],
+                                        combinator: 'and',
+                                        not: false,
+                                    },
+                                    match: {
+                                        mode: 'some',
+                                        threshold: 1,
+                                    },
+                                },
+                            ],
+                            combinator: 'and',
+                            not: false,
+                        },
+                        valueSource: 'value',
+                    },
+                ],
+                combinator: 'and',
+                not: false,
+            },
+            valueSource: 'value',
+        },
+    ],
+    not: false,
+}
 
-// Load ARIMA library once and cache
-const arimaPromise = ARIMAPromise.then((ARIMA) => ARIMA)
+const y = {
+    id: '0b5a6d34-92d5-4e94-8277-7dd64e8a1d4c',
+    rules: [
+        {
+            id: 'd86cf84e-8b78-4405-bef9-8cdbdff51c8e',
+            field: 'Contact',
+            operator: '=',
+            valueSource: 'value',
+            value: {
+                id: '55d8763e-d3be-4831-9a99-df7aa7280c13',
+                rules: [
+                    {
+                        id: '788a7093-7ac1-4633-b548-6f021e4f58ac',
+                        field: 'Id',
+                        operator: '==',
+                        valueSource: 'value',
+                        value: '1',
+                    },
+                    {
+                        id: '3b9cf88d-512a-45db-a7bc-c949bb54c65e',
+                        field: 'Person',
+                        operator: '=',
+                        valueSource: 'value',
+                        value: {
+                            id: '8714f071-8e80-45bf-96aa-e38f152eca30',
+                            rules: [
+                                {
+                                    id: 'ccc4a8d8-269a-485a-bf85-2a1f6f4c7154',
+                                    field: 'NaturalPerson',
+                                    operator: '=',
+                                    valueSource: 'value',
+                                    value: {
+                                        id: 'a79578c3-cec5-4a03-96ff-314b890f9250',
+                                        rules: [
+                                            {
+                                                id: 'bcf8e7e8-cc16-46fc-92c8-296b6b9b8abc',
+                                                field: 'FullName',
+                                                operator: '==',
+                                                valueSource: 'value',
+                                                value: 'someone',
+                                            },
+                                            {
+                                                id: '52a7ef94-7787-4317-a47b-1f8b9cf5d033',
+                                                field: 'Number',
+                                                operator: '==',
+                                                valueSource: 'value',
+                                                value: '2',
+                                            },
+                                        ],
+                                        combinator: 'and',
+                                        not: false,
+                                    },
+                                    match: {
+                                        mode: 'some',
+                                        threshold: 1,
+                                    },
+                                },
+                            ],
+                            combinator: 'and',
+                            not: false,
+                        },
+                        match: {
+                            mode: 'some',
+                            threshold: 1,
+                        },
+                    },
+                ],
+                combinator: 'and',
+                not: false,
+            },
+            match: {
+                mode: 'some',
+                threshold: 1,
+            },
+        },
+    ],
+    combinator: 'and',
+    not: false,
+}
 
-const SaleForecastChart = ({ data = [], filters = {}, forecastParams = {} }) => {
-  const [historicalData, setHistoricalData] = useState([])
-  const [predictedData, setPredictedData] = useState([])
+const merge = (tree, parnetFiled = null) => {
+    const copyTree = { ...tree }
 
-  useEffect(() => {
-    const { dateFrom, dateUntil } = filters
-    const { period } = forecastParams
-    if (!dateFrom || !dateUntil || !period) return
+    // const mergeRules = (rule) => {
+    //     let mergedRules = []
+    //     rule.value.rules.forEach((childRule) => {
+    //         if (rule.field === childRule.field) {
+    //             mergedRules = [...mergedRules, ...(childRule.value.rules ?? [])]
+    //             return true
+    //         } else {
+    //             mergedRules = [...mergedRules, ...childRule]
+    //         }
+    //     })
+    // }
 
-    const start = dayjs(dateFrom)
-    const end = dayjs(dateUntil)
-    if (!start.isValid() || !end.isValid() || start.isAfter(end)) return
+    // const mergeRules = (rules) => {
+    //     if (!rules) return
+    //     return rules.forEach((rule) => {
+    //         let mergedRules = []
+    //         rule?.value?.rules.forEach((childRule) => {
+    //             const childRuleRules = mergeRules(childRule.value.Rules)
 
-    // parse period like "7_day" into [7, 'day']
-    const [stepValueStr, stepUnit] = period.split('_')
-    const stepValue = Number(stepValueStr)
+    //             if (rule.field === childRule.field) {
+    //                 mergedRules = [...mergedRules, ...(childRuleRules ?? [])]
+    //                 return true
+    //             } else {
+    //                 mergedRules = [...mergedRules, ...childRule]
+    //             }
+    //         })
+    //     })
+    // }
 
-    // Sort data by date ascending
-    const sorted = [...data]
-      .map((d) => ({ ...d, date: dayjs(d.date) }))
-      .filter((d) => d.date.isValid())
-      .sort((a, b) => a.date - b.date)
+    // const mergeRules = (tree) => {
+    //     const newTree = { ...tree }
+    //     if (newTree.rules) {
+    //         let mergedRules = []
+    //         newTree.rules?.forEach((childFields) => {
+    //             if (typeof childFields.value === 'string') return
 
-    // Build periods from start to end inclusive
-    const periods = []
-    let cursor = start.clone()
-    while (cursor.isBefore(end) || cursor.isSame(end)) {
-      periods.push(cursor.clone())
-      cursor = cursor.add(stepValue, stepUnit)
-    }
+    //             const mergedChildValue = mergeRules(childFields.value)
+    //             mergedChildValue?.rules?.forEach((childRule) => {
+    //                 if (newTree?.field === childRule.field) {
+    //                     mergedRules = [...mergedRules, ...childRule.value.rules]
+    //                 } else {
+    //                     mergedRules = [...mergedRules, childRule]
+    //                 }
+    //             })
+    //         })
+    //         newTree.rules = mergedRules
+    //     }
+    //     return newTree
+    // }
 
-    // Two-pointer accumulation
-    const newHistorical = []
-    let idx = 0
-    for (let i = 0; i < periods.length; i++) {
-      const periodStart = periods[i]
-      const periodEnd = periodStart.add(stepValue, stepUnit)
-      let sum = 0
-      while (idx < sorted.length && sorted[idx].date.isBefore(periodEnd)) {
-        if (sorted[idx].date.isSame(periodStart) || sorted[idx].date.isAfter(periodStart)) {
-          sum += sorted[idx].totalNetPrice || 0
+    const mergeRules = (tree) => {
+        if (!tree || typeof tree !== 'object') return tree
+
+        const newTree = { ...tree }
+
+        if (Array.isArray(newTree.rules)) {
+            newTree.rules.forEach((rule) => {
+                if (!rule || typeof rule.value === 'string') {
+                    return
+                }
+
+                newTree.rules = []
+
+                const mergedChildValue = mergeRules(rule.value)
+
+                if (Array.isArray(rule.value?.rules)) {
+                    mergedChildValue.rules.forEach((childRule) => {
+                        if (
+                            rule.field === childRule.field &&
+                            Array.isArray(childRule.value?.rules)
+                        ) {
+                            newTree.rules = [...childRule.value.rules]
+                        } else {
+                            newTree.rules.push(childRule)
+                        }
+                    })
+                }
+            })
         }
-        idx++
-      }
-      newHistorical.push({
-        date: periodStart.format('YYYY-MM-DD'),
-        value: sum,
-      })
+
+        return newTree
     }
 
-    setHistoricalData(newHistorical)
-  }, [data, filters.dateFrom, filters.dateUntil, forecastParams.period])
-
-  useEffect(() => {
-    const { dateUntil } = filters
-    const { p, d, q, period } = forecastParams
-    if (!historicalData.length || !dateUntil || p == null || d == null || q == null || !period) return
-
-    let isActive = true
-    const end = dayjs(dateUntil)
-    const [stepValueStr, stepUnit] = period.split('_')
-    const stepValue = Number(stepValueStr)
-
-    arimaPromise.then((ARIMA) => {
-      if (!isActive) return
-      const ts = historicalData.map((pt) => pt.value)
-      const model = new ARIMA({ p, d, q, P: 0, D: 0, Q: 0, S: 0, verbose: false }).train(ts)
-      const [predictions] = model.predict(10)
-      if (!isActive) return
-
-      const newPredicted = predictions.map((pred, idx) => ({
-        date: end.add((idx + 1) * stepValue, stepUnit).format('YYYY-MM-DD'),
-        predict: pred,
-      }))
-      setPredictedData(newPredicted)
-    })
-
-    return () => {
-      isActive = false
-    }
-  }, [historicalData, filters.dateUntil, forecastParams.p, forecastParams.d, forecastParams.q, forecastParams.period])
-
-  return (
-    <Flex style={{ height: 400 }}>
-      <ForecastChart data={historicalData} predicts={predictedData} />
-    </Flex>
-  )
+    const x = mergeRules(copyTree)
+    console.log(x)
 }
 
-SaleForecastChart.propTypes = {
-  data: PropTypes.arrayOf(
-    PropTypes.shape({ date: PropTypes.string, totalNetPrice: PropTypes.number })
-  ),
-  filters: PropTypes.shape({ dateFrom: PropTypes.string, dateUntil: PropTypes.string }),
-  forecastParams: PropTypes.shape({ period: PropTypes.string, p: PropTypes.number, d: PropTypes.number, q: PropTypes.number }),
+export const main = () => {
+    merge(tree)
 }
-
-export default SaleForecastChart
