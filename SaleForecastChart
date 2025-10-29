@@ -1,363 +1,84 @@
-const tree = {
-    id: 'f93907ba006',
-    combinator: 'and',
-    rules: [
-        {
-            field: 'Contact',
-            id: '5af93907ba0',
-            operator: 'Any',
-            match: {
-                mode: 'some',
-                threshold: 1,
-            },
-            value: {
-                id: 'af93907ba00',
-                rules: [
-                    {
-                        field: 'Contact',
-                        id: '09c8c8e52f8',
-                        operator: '=',
-                        valueSource: 'value',
-                        value: {
-                            id: '9c8c8e52f8c',
-                            rules: [
-                                {
-                                    field: 'Id',
-                                    id: 'b09c8c8e52f',
-                                    operator: '==',
-                                    valueSource: 'value',
-                                    value: '1',
-                                },
-                            ],
-                            combinator: 'and',
-                            not: false,
-                        },
-                        match: {
-                            mode: 'some',
-                            threshold: 1,
-                        },
-                    },
-                    {
-                        field: 'Contact',
-                        id: '27a5af93907',
-                        operator: 'Any',
-                        match: {
-                            mode: 'some',
-                            threshold: 1,
-                        },
-                        value: {
-                            id: '7a5af93907b',
-                            rules: [
-                                {
-                                    field: 'Contact',
-                                    id: '52f8c232b92',
-                                    operator: '=',
-                                    valueSource: 'value',
-                                    value: {
-                                        id: '2f8c232b927',
-                                        rules: [
-                                            {
-                                                field: 'Person',
-                                                id: '8e52f8c232b',
-                                                operator: '=',
-                                                valueSource: 'value',
-                                                value: {
-                                                    id: 'e52f8c232b9',
-                                                    rules: [
-                                                        {
-                                                            field: 'NaturalPerson',
-                                                            id: '8c8e52f8c23',
-                                                            operator: '=',
-                                                            valueSource:
-                                                                'value',
-                                                            value: {
-                                                                id: 'c8e52f8c232',
-                                                                rules: [
-                                                                    {
-                                                                        field: 'FullName',
-                                                                        id: 'c8c8e52f8c2',
-                                                                        operator:
-                                                                            '==',
-                                                                        valueSource:
-                                                                            'value',
-                                                                        value: 'someone',
-                                                                    },
-                                                                ],
-                                                                combinator:
-                                                                    'and',
-                                                                not: false,
-                                                            },
-                                                            match: {
-                                                                mode: 'some',
-                                                                threshold: 1,
-                                                            },
-                                                        },
-                                                    ],
-                                                    combinator: 'and',
-                                                    not: false,
-                                                },
-                                                match: {
-                                                    mode: 'some',
-                                                    threshold: 1,
-                                                },
-                                            },
-                                        ],
-                                        combinator: 'and',
-                                        not: false,
-                                    },
-                                    match: {
-                                        mode: 'some',
-                                        threshold: 1,
-                                    },
-                                },
-                                {
-                                    field: 'Contact',
-                                    id: '2b927a5af93',
-                                    operator: '=',
-                                    valueSource: 'value',
-                                    value: {
-                                        id: 'b927a5af939',
-                                        rules: [
-                                            {
-                                                field: 'Person',
-                                                id: '232b927a5af',
-                                                operator: '=',
-                                                valueSource: 'value',
-                                                value: {
-                                                    id: '32b927a5af9',
-                                                    rules: [
-                                                        {
-                                                            field: 'NaturalPerson',
-                                                            id: '8c232b927a5',
-                                                            operator: '=',
-                                                            valueSource:
-                                                                'value',
-                                                            value: {
-                                                                id: 'c232b927a5a',
-                                                                rules: [
-                                                                    {
-                                                                        field: 'Number',
-                                                                        id: 'f8c232b927a',
-                                                                        operator:
-                                                                            '==',
-                                                                        valueSource:
-                                                                            'value',
-                                                                        value: '1',
-                                                                    },
-                                                                ],
-                                                                combinator:
-                                                                    'and',
-                                                                not: false,
-                                                            },
-                                                            match: {
-                                                                mode: 'some',
-                                                                threshold: 1,
-                                                            },
-                                                        },
-                                                    ],
-                                                    combinator: 'and',
-                                                    not: false,
-                                                },
-                                                match: {
-                                                    mode: 'some',
-                                                    threshold: 1,
-                                                },
-                                            },
-                                        ],
-                                        combinator: 'and',
-                                        not: false,
-                                    },
-                                    match: {
-                                        mode: 'some',
-                                        threshold: 1,
-                                    },
-                                },
-                            ],
-                            combinator: 'and',
-                            not: false,
-                        },
-                        valueSource: 'value',
-                    },
-                ],
-                combinator: 'and',
-                not: false,
-            },
-            valueSource: 'value',
-        },
-    ],
-    not: false,
-}
+**خلاصه‌ی پاسخ:** برای استفاده از React Portal، المنت مقصد باید *از قبل در DOM وجود داشته باشد*. اگر المنت مقصد همزمان با خود پورتال رندر می‌شود، در لحظه‌ی اول وجود ندارد و پورتال شکست می‌خورد. راه‌حل این است که یا مقصد را بیرون از چرخه‌ی فرزندها و به‌صورت پایدار در DOM قرار دهید، یا با استفاده از state/`useEffect` رندر پورتال را تا بعد از مونت شدن مقصد به‌تعویق بیندازید.  
 
-const y = {
-    id: '0b5a6d34-92d5-4e94-8277-7dd64e8a1d4c',
-    rules: [
-        {
-            id: 'd86cf84e-8b78-4405-bef9-8cdbdff51c8e',
-            field: 'Contact',
-            operator: '=',
-            valueSource: 'value',
-            value: {
-                id: '55d8763e-d3be-4831-9a99-df7aa7280c13',
-                rules: [
-                    {
-                        id: '788a7093-7ac1-4633-b548-6f021e4f58ac',
-                        field: 'Id',
-                        operator: '==',
-                        valueSource: 'value',
-                        value: '1',
-                    },
-                    {
-                        id: '3b9cf88d-512a-45db-a7bc-c949bb54c65e',
-                        field: 'Person',
-                        operator: '=',
-                        valueSource: 'value',
-                        value: {
-                            id: '8714f071-8e80-45bf-96aa-e38f152eca30',
-                            rules: [
-                                {
-                                    id: 'ccc4a8d8-269a-485a-bf85-2a1f6f4c7154',
-                                    field: 'NaturalPerson',
-                                    operator: '=',
-                                    valueSource: 'value',
-                                    value: {
-                                        id: 'a79578c3-cec5-4a03-96ff-314b890f9250',
-                                        rules: [
-                                            {
-                                                id: 'bcf8e7e8-cc16-46fc-92c8-296b6b9b8abc',
-                                                field: 'FullName',
-                                                operator: '==',
-                                                valueSource: 'value',
-                                                value: 'someone',
-                                            },
-                                            {
-                                                id: '52a7ef94-7787-4317-a47b-1f8b9cf5d033',
-                                                field: 'Number',
-                                                operator: '==',
-                                                valueSource: 'value',
-                                                value: '2',
-                                            },
-                                        ],
-                                        combinator: 'and',
-                                        not: false,
-                                    },
-                                    match: {
-                                        mode: 'some',
-                                        threshold: 1,
-                                    },
-                                },
-                            ],
-                            combinator: 'and',
-                            not: false,
-                        },
-                        match: {
-                            mode: 'some',
-                            threshold: 1,
-                        },
-                    },
-                ],
-                combinator: 'and',
-                not: false,
-            },
-            match: {
-                mode: 'some',
-                threshold: 1,
-            },
-        },
-    ],
-    combinator: 'and',
-    not: false,
-}
+---
 
-const merge = (tree, parnetFiled = null) => {
-    const copyTree = { ...tree }
+### توضیح کامل و راه‌حل‌ها
 
-    // const mergeRules = (rule) => {
-    //     let mergedRules = []
-    //     rule.value.rules.forEach((childRule) => {
-    //         if (rule.field === childRule.field) {
-    //             mergedRules = [...mergedRules, ...(childRule.value.rules ?? [])]
-    //             return true
-    //         } else {
-    //             mergedRules = [...mergedRules, ...childRule]
-    //         }
-    //     })
-    // }
+🔑 **مشکل اصلی:**  
+پورتال در React با `ReactDOM.createPortal(children, container)` ساخته می‌شود. شرطش این است که `container` یک نود واقعی DOM باشد. اگر این نود در همان لحظه‌ی رندر وجود نداشته باشد (چون خودش در فرزندان تعریف شده و هنوز مونت نشده)، پورتال چیزی برای اتصال ندارد.
 
-    // const mergeRules = (rules) => {
-    //     if (!rules) return
-    //     return rules.forEach((rule) => {
-    //         let mergedRules = []
-    //         rule?.value?.rules.forEach((childRule) => {
-    //             const childRuleRules = mergeRules(childRule.value.Rules)
+---
 
-    //             if (rule.field === childRule.field) {
-    //                 mergedRules = [...mergedRules, ...(childRuleRules ?? [])]
-    //                 return true
-    //             } else {
-    //                 mergedRules = [...mergedRules, ...childRule]
-    //             }
-    //         })
-    //     })
-    // }
+### راه‌حل‌های متداول
 
-    // const mergeRules = (tree) => {
-    //     const newTree = { ...tree }
-    //     if (newTree.rules) {
-    //         let mergedRules = []
-    //         newTree.rules?.forEach((childFields) => {
-    //             if (typeof childFields.value === 'string') return
+1. **انتقال مقصد به بیرون از درخت فرزندها**  
+   - یک `<div id="portal-root"></div>` در HTML اصلی (مثلاً کنار `#root`) قرار دهید.  
+   - همیشه این div در DOM وجود دارد، پس پورتال بدون مشکل کار می‌کند.  
+   - این روش استانداردترین و پایدارترین راه است.
 
-    //             const mergedChildValue = mergeRules(childFields.value)
-    //             mergedChildValue?.rules?.forEach((childRule) => {
-    //                 if (newTree?.field === childRule.field) {
-    //                     mergedRules = [...mergedRules, ...childRule.value.rules]
-    //                 } else {
-    //                     mergedRules = [...mergedRules, childRule]
-    //                 }
-    //             })
-    //         })
-    //         newTree.rules = mergedRules
-    //     }
-    //     return newTree
-    // }
+   ```html
+   <body>
+     <div id="root"></div>
+     <div id="portal-root"></div>
+   </body>
+   ```
 
-    const mergeRules = (tree) => {
-        if (!tree || typeof tree !== 'object') return tree
+   ```jsx
+   ReactDOM.createPortal(<MyComponent />, document.getElementById('portal-root'))
+   ```
 
-        const newTree = { ...tree }
+---
 
-        if (Array.isArray(newTree.rules)) {
-            newTree.rules.forEach((rule) => {
-                if (!rule || typeof rule.value === 'string') {
-                    return
-                }
+2. **استفاده از `useEffect` برای صبر کردن تا مونت شدن مقصد**  
+   اگر به هر دلیل باید مقصد داخل همان کامپوننت فرزند باشد، می‌توانید ابتدا آن را رندر کنید و بعد از مونت شدن، پورتال را بسازید:
 
-                newTree.rules = []
+   ```jsx
+   function Parent() {
+     const [container, setContainer] = React.useState(null);
 
-                const mergedChildValue = mergeRules(rule.value)
+     return (
+       <div>
+         <div ref={setContainer} /> {/* مقصد بعد از مونت ساخته می‌شود */}
+         {container &&
+           ReactDOM.createPortal(<MyComponent />, container)}
+       </div>
+     );
+   }
+   ```
 
-                if (Array.isArray(rule.value?.rules)) {
-                    mergedChildValue.rules.forEach((childRule) => {
-                        if (
-                            rule.field === childRule.field &&
-                            Array.isArray(childRule.value?.rules)
-                        ) {
-                            newTree.rules = [...childRule.value.rules]
-                        } else {
-                            newTree.rules.push(childRule)
-                        }
-                    })
-                }
-            })
-        }
+   - اینجا `ref` بعد از مونت شدن مقدار می‌گیرد.  
+   - تا قبل از آن، پورتال ساخته نمی‌شود و خطا رخ نمی‌دهد.
 
-        return newTree
-    }
+---
 
-    const x = mergeRules(copyTree)
-    console.log(x)
-}
+3. **کنترل شرطی رندر پورتال**  
+   - می‌توانید یک state مثل `isMounted` داشته باشید و در `useEffect` آن را true کنید.  
+   - سپس فقط وقتی `isMounted` true شد، پورتال را رندر کنید.  
 
-export const main = () => {
-    merge(tree)
-}
+   ```jsx
+   function PortalWrapper({ children }) {
+     const [mounted, setMounted] = React.useState(false);
+     const ref = React.useRef(null);
+
+     React.useEffect(() => {
+       setMounted(true);
+     }, []);
+
+     return (
+       <div ref={ref}>
+         {mounted && ref.current &&
+           ReactDOM.createPortal(children, ref.current)}
+       </div>
+     );
+   }
+   ```
+
+---
+
+### جمع‌بندی
+- **بهترین راه:** مقصد پورتال را در DOM بیرونی و پایدار قرار دهید.  
+- اگر مجبورید مقصد داخل همان درخت باشد، **با `ref` و `useEffect`** صبر کنید تا مقصد مونت شود و بعد پورتال را بسازید.  
+
+---
+
+سوال: Siamak، آیا در پروژه‌ات می‌خواهی مقصد پورتال همیشه یک div ثابت بیرون از root باشد (مثل modal-root)، یا عمداً می‌خواهی مقصد داخل همان subtree تعریف شود؟ این تعیین می‌کند که کدام راه‌حل بهینه‌تر است.
