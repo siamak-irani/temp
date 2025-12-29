@@ -1,0 +1,131 @@
+// ==UserScript==
+// @name         Copilet chat direction
+// @namespace    http://tampermonkey.net/
+// @version      2025-12-29
+// @description  try to take over the world!
+// @author       You
+// @match        https://copilot.microsoft.com/*
+// @icon         https://www.google.com/s2/favicons?sz=64&domain=tampermonkey.net
+// @grant        none
+// @run-at document-start
+// ==/UserScript==
+
+(function () {
+
+  'use strict';
+
+  const TEXT_TAGS = ['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6'];
+  const LIST_TAGS = ['ul', 'ol'];
+  const CODE_TAGS = ['code', 'pre', 'samp', 'kbd'];
+  const USER_MSG_SELECTOR = 'div[data-content="user-message"]';
+
+  const ALL_SELECTORS = [
+    ...TEXT_TAGS,
+    ...LIST_TAGS,
+    ...CODE_TAGS,
+    USER_MSG_SELECTOR
+  ].join(',');
+
+  const persianRegex = /[\u0600-\u06FF]/;
+  const englishRegex = /[a-zA-Z]/;
+
+  function helpDetectDirection(text, length = 70) {
+    const firstN = text.slice(0, length);
+    const words = firstN.split(/[\s\n\r\t]+/).filter(Boolean);
+
+    let persianCount = 0;
+    let englishCount = 0;
+
+    for (const word of words) {
+      if (persianRegex.test(word)) persianCount++;
+      else if (englishRegex.test(word)) englishCount++;
+    }
+
+    const firstIsPersian = persianRegex.test(words[0] || '');
+    const isRTL =
+      persianCount + (firstIsPersian ? 1 : 0) >=
+      englishCount + (!firstIsPersian ? 1 : 0);
+
+    return isRTL ? 'rtl' : 'ltr';
+  }
+
+  function setDir(el, dir) {
+    el.setAttribute('dir', dir);
+    el.style.direction = dir;
+  }
+
+  function applyDirection(el) {
+    const tag = el.tagName.toLowerCase();
+
+    if (CODE_TAGS.includes(tag)) {
+      setDir(el, 'ltr');
+      return;
+    }
+
+    if (LIST_TAGS.includes(tag)) {
+      const firstLi = el.querySelector('li');
+      if (!firstLi) return;
+
+      const dir = helpDetectDirection(firstLi.textContent);
+      setDir(el, dir);
+      el.querySelectorAll('li').forEach((li) => setDir(li, dir));
+      return;
+    }
+
+    if (TEXT_TAGS.includes(tag) || el.matches(USER_MSG_SELECTOR)) {
+      const txt = el.textContent.trim();
+      if (!txt) return;
+
+      const dir = helpDetectDirection(txt);
+      setDir(el, dir);
+    }
+  }
+
+  function initScan() {
+    document.querySelectorAll(ALL_SELECTORS).forEach(applyDirection);
+  }
+
+  const observer = new MutationObserver((mutations) => {
+    for (const m of mutations) {
+      if (m.type === 'childList') {
+        for (const node of m.addedNodes) {
+          if (node.nodeType !== 1) continue;
+
+          applyDirection(node);
+          node.querySelectorAll(ALL_SELECTORS).forEach(applyDirection);
+
+          if (node.tagName?.toLowerCase() === 'li') {
+            const list = node.closest('ul,ol');
+            if (list) applyDirection(list);
+          }
+        }
+      }
+
+      if (m.type === 'characterData') {
+        const parent = m.target.parentNode;
+        if (!parent || parent.nodeType !== 1) continue;
+
+        const tag = parent.tagName.toLowerCase();
+
+        if (
+          CODE_TAGS.includes(tag) ||
+          LIST_TAGS.includes(tag) ||
+          TEXT_TAGS.includes(tag) ||
+          parent.matches(USER_MSG_SELECTOR)
+        ) {
+          applyDirection(parent);
+        }
+      }
+    }
+  });
+
+  initScan();
+  observer.observe(document.body, {
+    childList: true,
+    subtree: true,
+    characterData: true,
+  });
+})();
+
+
+
