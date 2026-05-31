@@ -1,0 +1,527 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>راهنمای استفاده از CRM</title>
+
+    <style>
+      :root {
+        --primary: #14b8a6;
+        --primary-dark: #0f766e;
+        --accent: #a855f7;
+
+        --text: #1f2937;
+        --muted: #6b7280;
+
+        --bg: #ffffff;
+        --bg-page: #f5f7fb;
+
+        --border: #e5e7eb;
+
+        --radius: 14px;
+        --radius-sm: 10px;
+
+        --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.06);
+        --shadow-md: 0 10px 30px rgba(0, 0, 0, 0.08);
+
+        --sidebar-w: 270px;
+        --gap: 18px;
+
+        --font: system-ui, -apple-system, "Segoe UI", sans-serif;
+      }
+
+      /* RESET */
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      html {
+        scroll-behavior: smooth;
+      }
+
+      body {
+        font-family: var(--font);
+        background: var(--bg-page);
+        color: var(--text);
+        line-height: 1.9;
+        font-size: 15px;
+      }
+
+      /* LAYOUT */
+      .page-layout {
+        display: flex;
+        min-height: 100vh;
+      }
+
+      /* SIDEBAR */
+      .sidebar {
+        width: var(--sidebar-w);
+        background: var(--bg);
+        position: sticky;
+        top: var(--gap);
+        height: calc(100vh - var(--gap) * 2);
+        margin: var(--gap);
+        border-radius: var(--radius);
+        box-shadow: var(--shadow-md);
+        border: 1px solid var(--border);
+        overflow: hidden;
+        transition: all 0.25s ease;
+      }
+
+      .sidebar nav {
+        padding: 16px 14px;
+        overflow-y: auto;
+        height: 100%;
+      }
+
+      .menu-title {
+        font-size: 13px;
+        font-weight: 800;
+        color: var(--primary);
+        margin-bottom: 14px;
+        letter-spacing: 0.3px;
+      }
+
+      /* MENU ITEMS */
+      .sidebar ul {
+        list-style: none;
+      }
+
+      .sidebar li {
+        margin-bottom: 8px;
+      }
+
+      /* MAIN LABEL */
+      .sidebar label {
+        display: flex;
+        align-items: center;
+
+        justify-content: start ;
+        gap: 20px;
+        padding: 10px 12px;
+        border-radius: var(--radius-sm);
+
+        cursor: pointer;
+        font-weight: 600;
+        display: flex;
+
+        background: #f9fafb;
+        transition: 0.2s ease;
+      }
+
+      .sidebar label:hover {
+        background: #e6fffb;
+        color: var(--primary-dark);
+      }
+
+
+
+      /* SUB MENU */
+      .sidebar input {
+        display: none;
+      }
+
+      .sidebar ul ul {
+        display: none;
+        margin-top: 6px;
+        padding-right: 30px;
+        border-right: 2px solid #f1f5f9;
+      }
+
+      .sidebar input:checked + ul {
+        display: block;
+        animation: fadeIn 0.2s ease;
+      }
+
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+        }
+        to {
+          opacity: 1;
+        }
+      }
+
+      .sidebar a {
+        display: block;
+        padding: 7px 10px;
+        margin: 4px 0;
+        border-radius: 8px;
+
+        text-decoration: none;
+        color: var(--muted);
+
+        transition: all 0.2s ease;
+      }
+
+      .sidebar a:hover {
+        background: var(--primary);
+        color: white;
+        transform: translateX(-3px);
+      }
+
+      /* TOGGLE BUTTON */
+      .sidebar-toggle {
+        position: fixed;
+        top: 14px;
+        right: 14px;
+        z-index: 9999;
+        background: var(--primary);
+        color: white;
+        border: none;
+        padding: 10px 12px;
+        border-radius: 10px;
+        cursor: pointer;
+        display: none;
+
+        box-shadow: var(--shadow-md);
+      }
+
+      .sidebar.closed {
+        width: 0;
+        opacity: 0;
+        pointer-events: none;
+      }
+
+      /* MAIN CONTENT */
+      main {
+        flex: 1;
+        padding: 24px;
+        /* max-width: 1050px; */
+        margin: 0 auto;
+      }
+
+      /* HEADER */
+      header.card {
+        padding: 26px;
+        background: linear-gradient(135deg, #ffffff, #f9fafb);
+      }
+
+      header h1 {
+        font-size: 28px;
+        font-weight: 900;
+        color: var(--primary-dark);
+      }
+
+      header p {
+        color: var(--muted);
+        margin-top: 6px;
+      }
+
+      /* CARDS */
+      .card {
+        background: var(--bg);
+        border-radius: var(--radius);
+        padding: 18px 20px;
+        margin-bottom: 18px;
+        border: 1px solid var(--border);
+        box-shadow: var(--shadow-sm);
+        transition: 0.2s ease;
+      }
+
+      .card:hover {
+        box-shadow: var(--shadow-md);
+      }
+
+      /* TITLES */
+      .title-main {
+        font-size: 20px;
+        font-weight: 800;
+        margin-bottom: 6px;
+        color: var(--text);
+      }
+
+      .section-desc {
+        color: var(--muted);
+        margin-bottom: 18px;
+      }
+
+      /* CARD TITLE */
+      .card-title {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 20px;
+
+        font-weight: 700;
+        margin-bottom: 12px;
+        font-size: 17px;
+      }
+
+      .card-title .anchor {
+        margin-right: auto;
+        opacity: 0;
+        color: var(--muted);
+        text-decoration: none;
+        transition: 0.2s;
+      }
+
+      .card-title:hover .anchor {
+        opacity: 1;
+      }
+
+      /* LISTS */
+      ul.list {
+        padding-right: 18px;
+      }
+
+      ul li {
+        margin-bottom: 6px;
+      }
+
+
+      /* FOOTER */
+      footer {
+        text-align: center;
+        font-size: 12px;
+        color: var(--muted);
+        margin-top: 40px;
+        padding: 20px 0;
+        border-top: 1px solid var(--border);
+      }
+
+      /* SCROLL OFFSET FOR ANCHORS */
+      section {
+        scroll-margin-top: 80px;
+      }
+
+      /* RESPONSIVE */
+      @media (max-width: 768px) {
+        .sidebar-toggle {
+          display: block;
+        }
+
+        .sidebar {
+          position: fixed;
+          top: 0;
+          right: 0;
+          height: 100vh;
+          margin: 0;
+          border-radius: 0;
+          transform: translateX(0);
+          z-index: 1000;
+        }
+
+        .sidebar.closed {
+          transform: translateX(100%);
+          width: var(--sidebar-w);
+          opacity: 1;
+        }
+
+        main {
+          padding-top: 80px;
+        }
+      }
+    </style>
+  </head>
+
+  <body>
+    <button class="sidebar-toggle" id="sidebarToggle">☰</button>
+    <div class="page-layout">
+      <aside class="sidebar" id="sidebar">
+        <nav>
+          <h2 class="menu-title">فهرست مطالب</h2>
+          <ul>
+            <li>
+              <label for="menu-item-1">
+                <span>🚩</span>
+                <span>شروع به کار</span>
+              </label>
+              <input type="checkbox" id="menu-item-1" checked />
+              <ul>
+                <li><a href="#login">صفحه ورود</a></li>
+                <li><a href="#desktop">میزکار</a></li>
+              </ul>
+            </li>
+
+            <li>
+              <label for="menu-item-2">
+                <span>🛍️</span>
+                <span>مشتریان</span>
+              </label>
+              <input type="checkbox" id="menu-item-2" />
+              <ul>
+                <li><a href="#lead">سرنخ</a></li>
+                <li><a href="#account">حساب</a></li>
+                <li><a href="#contact">مخاطب</a></li>
+              </ul>
+            </li>
+
+            <li>
+              <label for="menu-item-3">
+                <span>💰</span>
+                <span>فروش</span>
+              </label>
+              <input type="checkbox" id="menu-item-3" />
+              <ul>
+                <li><a href="#opportunity">فرصت</a></li>
+                <li><a href="#quote">پیش فاکتور</a></li>
+                <li><a href="#invoice">فاکتور</a></li>
+                <li><a href="#sale-type">نوع فروش</a></li>
+                <li><a href="#sale-pipeline">روند فروش</a></li>
+              </ul>
+            </li>
+
+            <li>
+              <label for="menu-item-4">
+                <span>📆</span>
+                <span>عملیات روزانه</span>
+              </label>
+              <input type="checkbox" id="menu-item-4" />
+              <ul>
+                <li><a href="#activity">فعالیت</a></li>
+                <li><a href="#project">پروژه</a></li>
+                <li><a href="#ticket">تیکت</a></li>
+              </ul>
+            </li>
+
+            <li>
+              <label for="menu-item-5">
+                <span>📚</span>
+                <span>پایگاه دانش</span>
+              </label>
+              <input type="checkbox" id="menu-item-5" />
+              <ul>
+                <li><a href="#article">مقاله</a></li>
+                <li><a href="#faq">سوال و جواب</a></li>
+              </ul>
+            </li>
+
+            <li>
+              <label for="menu-item-6">
+                <span>📈</span>
+                <span>گزارش</span>
+              </label>
+              <input type="checkbox" id="menu-item-6" />
+              <ul>
+                <li><a href="#report-lead">گزارش سرنخ</a></li>
+                <li><a href="#report-activity">گزارش فعالیت</a></li>
+                <li><a href="#forecast">پیش بینی فروش</a></li>
+                <li><a href="#sales-funnel">قیف فروش</a></li>
+              </ul>
+            </li>
+
+            <li>
+              <label for="menu-item-7">
+                <span>🏗️</span>
+                <span>اطلاعات پایه</span>
+              </label>
+              <input type="checkbox" id="menu-item-7" />
+              <ul>
+                <li><a href="#users">کاربران</a></li>
+                <li><a href="#roles">نقش</a></li>
+                <li><a href="#forms">فرم</a></li>
+                <li><a href="#currency">ارز</a></li>
+                <li><a href="#product">کالا</a></li>
+                <li><a href="#warehouse">انبار</a></li>
+              </ul>
+            </li>
+
+            <li>
+              <label for="menu-item-8">
+                <span>⚙️</span>
+                <span>تنظیمات</span>
+              </label>
+              <input type="checkbox" id="menu-item-8" />
+              <ul>
+                <li><a href="#user-settings">کاربر</a></li>
+                <li><a href="#company-settings">شرکت</a></li>
+                <li><a href="#integration">یکپارچه سازی</a></li>
+                <li><a href="#api-keys">کلید دسترسی</a></li>
+              </ul>
+            </li>
+          </ul>
+        </nav>
+      </aside>
+      <main>
+        <!-- Main Content -->
+        <header class="card">
+          <!-- Cover -->
+          <section class="mb-10">
+            <h1 class="text-4xl font-bold text-teal-700 mb-2">
+              راهنمای استفاده از CRM
+            </h1>
+            <p class="text-stone-600">
+              نسخه ۱.۰ — این راهنما برای کاربران سیستم مدیریت ارتباط با مشتری
+              طراحی شده است.
+            </p>
+          </section>
+        </header>
+        <div class="">
+          <section class="section-wrapper">
+            <h1 class="title-main">شروع به کار</h1>
+            <p class="section-desc">
+              در این بخش با مراحل اولیه ورود و کار با میزکار آشنا می‌شوید.
+            </p>
+
+            <section id="login" class="card">
+              <h2 class="card-title">
+                
+                <span>🔐</span>
+                <span>صفحه ورود</span>
+                <a class="anchor" href="#login">#</a>
+              </h2>
+              <p>
+                برای ورود به سیستم، به آدرس ورود بروید و اطلاعات مورد نیاز (نام
+                شرکت، آدرس ایمیل و رمز عبور) را وارد کنید. سپس روی دکمه ورود
+                کلیک کنید.
+              </p>
+            </section>
+
+            <section id="desktop" class="card">
+              <h2 class="card-title">
+                <span>🗃️</span>
+                <span>میزکار</span>
+                <a class="anchor" href="#desktop">#</a>
+              </h2>
+              <p>
+                پس از ورود، صفحه میزکار نمایش داده می‌شود که شامل سه بخش اصلی
+                است:
+              </p>
+
+              <ul class="list">
+                <li>
+                  <b>نوار بالای صفحه:</b> برای جستجو، مشاهده نوتیفیکیشن‌ها و
+                  خروج از حساب کاربری.
+                </li>
+                <li><b>منوی سمت راست:</b> شامل تمام ماژول‌ها و دسترسی‌ها.</li>
+                <li>
+                  <b>بخش میزکار:</b> نمایش کارپوشه، گزارش فروش، پیام‌رسان و
+                  تقویم.
+                </li>
+              </ul>
+            </section>
+          </section>
+
+          <!-- Footer -->
+          <footer
+            class="text-center text-sm text-stone-500 mt-10 border-t pt-4"
+          >
+            © ۲۰۲۵ HNAM — راهنمای CRM
+          </footer>
+        </div>
+      </main>
+    </div>
+
+    <script>
+      window.addEventListener("load", () => {
+        if (window.location.hash) {
+          const targetEl = document.querySelector(window.location.hash);
+          if (targetEl) targetEl.scrollIntoView();
+        }
+      });
+    </script>
+
+    <script>
+      const sidebar = document.getElementById("sidebar");
+      const toggle = document.getElementById("sidebarToggle");
+
+      toggle.addEventListener("click", () => {
+        sidebar.classList.toggle("closed");
+      });
+    </script>
+  </body>
+</html>
