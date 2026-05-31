@@ -1,526 +1,625 @@
 <!doctype html>
 <html lang="fa" dir="rtl">
   <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>راهنمای استفاده از CRM</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>راهنمای استفاده از CRM — ریفکتور</title>
 
     <style>
       :root {
-        --primary: #14b8a6;
-        --primary-dark: #0f766e;
-        --accent: #a855f7;
-
-        --text: #1f2937;
-        --muted: #6b7280;
-
-        --bg: #ffffff;
-        --bg-page: #f5f7fb;
-
-        --border: #e5e7eb;
-
-        --radius: 14px;
-        --radius-sm: 10px;
-
-        --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.06);
-        --shadow-md: 0 10px 30px rgba(0, 0, 0, 0.08);
-
-        --sidebar-w: 270px;
-        --gap: 18px;
-
-        --font: system-ui, -apple-system, "Segoe UI", sans-serif;
+        --bg: #f6f9fb;
+        --card: #ffffff;
+        --muted: #64748b;
+        --text: #0f1724;
+        --accent: #0ea5a4;
+        --accent-2: #06b6d4;
+        --glass: rgba(255, 255, 255, 0.6);
+        --radius: 12px;
+        --shadow: 0 6px 18px rgba(15, 23, 36, 0.06);
+        --sidebar-w: 280px;
+        --transition: 250ms cubic-bezier(0.2, 0.9, 0.2, 1);
+        --border-radius: 20px;
       }
 
-      /* RESET */
+      /* Dark mode variables */
+      :root[data-theme="dark"] {
+        --bg: #071023;
+        --card: linear-gradient(
+          180deg,
+          rgba(255, 255, 255, 0.02),
+          rgba(255, 255, 255, 0.01)
+        );
+        --muted: #94a3b8;
+        --text: #e6eef6;
+        --accent: #06b6d4;
+        --accent-2: #0ea5a4;
+        --glass: rgba(255, 255, 255, 0.03);
+        --shadow: 0 8px 30px rgba(2, 6, 23, 0.6);
+      }
+
+      /* Reset & base */
       * {
         box-sizing: border-box;
-        margin: 0;
-        padding: 0;
       }
-
-      html {
-        scroll-behavior: smooth;
-      }
-
+      html,
       body {
-        font-family: var(--font);
-        background: var(--bg-page);
+        height: 100%;
+      }
+      body {
+        margin: 0;
+        font-family: "Segoe UI",Arial;
+        background: var(--bg);
         color: var(--text);
-        line-height: 1.9;
-        font-size: 15px;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        line-height: 1.6;
+        direction: rtl;
       }
 
-      /* LAYOUT */
-      .page-layout {
-        display: flex;
+      a {
+        color: inherit;
+        text-decoration: none;
+      }
+    
+
+      /* Layout */
+      .app {
+        display: grid;
+        grid-template-columns: 1fr;
         min-height: 100vh;
       }
 
-      /* SIDEBAR */
-      .sidebar {
-        width: var(--sidebar-w);
-        background: var(--bg);
-        position: sticky;
-        top: var(--gap);
-        height: calc(100vh - var(--gap) * 2);
-        margin: var(--gap);
-        border-radius: var(--radius);
-        box-shadow: var(--shadow-md);
-        border: 1px solid var(--border);
-        overflow: hidden;
-        transition: all 0.25s ease;
-      }
-
-      .sidebar nav {
-        padding: 16px 14px;
-        overflow-y: auto;
-        height: 100%;
-      }
-
-      .menu-title {
-        font-size: 13px;
-        font-weight: 800;
-        color: var(--primary);
-        margin-bottom: 14px;
-        letter-spacing: 0.3px;
-      }
-
-      /* MENU ITEMS */
-      .sidebar ul {
-        list-style: none;
-      }
-
-      .sidebar li {
-        margin-bottom: 8px;
-      }
-
-      /* MAIN LABEL */
-      .sidebar label {
+      header.appbar {
         display: flex;
         align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        padding: 14px 20px;
+        backdrop-filter: blur(6px);
+        background: linear-gradient(
+          180deg,
+          rgba(255, 255, 255, 0.6),
+          rgba(255, 255, 255, 0.4)
+        );
+        border-bottom: 1px solid rgba(15, 23, 36, 0.04);
+        position: sticky;
+        top: 0;
+        z-index: 40;
+      }
 
-        justify-content: start ;
-        gap: 20px;
-        padding: 10px 12px;
-        border-radius: var(--radius-sm);
-
-        cursor: pointer;
-        font-weight: 600;
+      header.appbar .brand {
         display: flex;
-
-        background: #f9fafb;
-        transition: 0.2s ease;
+        align-items: center;
+        gap: 12px;
       }
 
-      .sidebar label:hover {
-        background: #e6fffb;
-        color: var(--primary-dark);
-      }
-
-
-
-      /* SUB MENU */
-      .sidebar input {
-        display: none;
-      }
-
-      .sidebar ul ul {
-        display: none;
-        margin-top: 6px;
-        padding-right: 30px;
-        border-right: 2px solid #f1f5f9;
-      }
-
-      .sidebar input:checked + ul {
-        display: block;
-        animation: fadeIn 0.2s ease;
-      }
-
-      @keyframes fadeIn {
-        from {
-          opacity: 0;
-        }
-        to {
-          opacity: 1;
-        }
-      }
-
-      .sidebar a {
-        display: block;
-        padding: 7px 10px;
-        margin: 4px 0;
-        border-radius: 8px;
-
-        text-decoration: none;
-        color: var(--muted);
-
-        transition: all 0.2s ease;
-      }
-
-      .sidebar a:hover {
-        background: var(--primary);
+      .logo {
+        width: 44px;
+        height: 44px;
+        border-radius: var(--border-radius);
+        display: grid;
+        place-items: center;
+        background: linear-gradient(135deg, var(--accent), var(--accent-2));
         color: white;
-        transform: translateX(-3px);
+        font-weight: 700;
+        box-shadow: var(--shadow);
       }
 
-      /* TOGGLE BUTTON */
-      .sidebar-toggle {
-        position: fixed;
-        top: 14px;
-        right: 14px;
-        z-index: 9999;
-        background: var(--primary);
-        color: white;
-        border: none;
-        padding: 10px 12px;
-        border-radius: 10px;
+      .brand h1 {
+        margin: 0;
+        font-size: 16px;
+        letter-spacing: 0.2px;
+      }
+
+      .controls {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .search {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        background: var(--card);
+        border-radius: 999px;
+        padding: 8px 12px;
+        box-shadow: var(--shadow);
+        min-width: 220px;
+        max-width: 520px;
+        width: 40vw;
+      }
+
+      .search input {
+        border: 0;
+        outline: 0;
+        background: transparent;
+        width: 100%;
+        color: var(--text);
+        font-size: 14px;
+      }
+
+      .icon-btn {
+        background: transparent;
+        border: 0;
+        padding: 8px;
+        border-radius: var(--border-radius);
         cursor: pointer;
-        display: none;
-
-        box-shadow: var(--shadow-md);
+        color: var(--muted);
       }
 
-      .sidebar.closed {
-        width: 0;
+      /* Shell */
+      .shell {
+        display: grid;
+        grid-template-columns: auto 1fr;
+        gap: 20px;
+        padding: 28px;
+      }
+
+      /* Sidebar */
+      nav.sidebar {
+        width: var(--sidebar-w);
+        min-width: var(--sidebar-w);
+        background: var(--card);
+        border-radius:  var(--border-radius);
+        padding: 18px;
+        box-shadow: var(--shadow);
+        height: calc(100vh - 120px);
+        position: sticky;
+        top: 72px;
+        align-self: start;
+        overflow: auto;
+        transition:
+          transform var(--transition),
+          opacity var(--transition);
+      }
+
+      nav.sidebar.closed {
+        transform: translateX(110%);
         opacity: 0;
         pointer-events: none;
       }
 
-      /* MAIN CONTENT */
-      main {
-        flex: 1;
-        padding: 24px;
-        /* max-width: 1050px; */
-        margin: 0 auto;
+      nav.sidebar h2 {
+        margin: 0 0 10px 0;
+        font-size: 14px;
+        color: var(--accent);
       }
 
-      /* HEADER */
-      header.card {
-        padding: 26px;
-        background: linear-gradient(135deg, #ffffff, #f9fafb);
+      .nav-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
       }
-
-      header h1 {
-        font-size: 28px;
-        font-weight: 900;
-        color: var(--primary-dark);
-      }
-
-      header p {
-        color: var(--muted);
-        margin-top: 6px;
-      }
-
-      /* CARDS */
-      .card {
-        background: var(--bg);
-        border-radius: var(--radius);
-        padding: 18px 20px;
-        margin-bottom: 18px;
-        border: 1px solid var(--border);
-        box-shadow: var(--shadow-sm);
-        transition: 0.2s ease;
-      }
-
-      .card:hover {
-        box-shadow: var(--shadow-md);
-      }
-
-      /* TITLES */
-      .title-main {
-        font-size: 20px;
-        font-weight: 800;
-        margin-bottom: 6px;
-        color: var(--text);
-      }
-
-      .section-desc {
-        color: var(--muted);
-        margin-bottom: 18px;
-      }
-
-      /* CARD TITLE */
-      .card-title {
+      .nav-item {
         display: flex;
         align-items: center;
         gap: 10px;
-        font-size: 20px;
-
-        font-weight: 700;
-        margin-bottom: 12px;
-        font-size: 17px;
+        padding: 10px;
+        border-radius:  var(--border-radius);
+        color: var(--text);
+        cursor: pointer;
+        transition:
+          background var(--transition),
+          transform var(--transition);
+      }
+      .nav-item:hover {
+        background: rgba(6, 182, 212, 0.06);
+        transform: translateX(-4px);
+      }
+      .nav-item.active {
+        background: linear-gradient(
+          90deg,
+          rgba(6, 182, 212, 0.12),
+          rgba(14, 165, 164, 0.06)
+        );
+        box-shadow: inset 0 0 0 1px rgba(6, 182, 212, 0.04);
       }
 
-      .card-title .anchor {
-        margin-right: auto;
-        opacity: 0;
+      .nav-item svg {
+        width: 18px;
+        height: 18px;
+        flex-shrink: 0;
+      }
+
+      /* Content */
+      main.content {
+        min-height: 60vh;
+        padding: 6px;
+        outline: none;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(1, minmax(0, 1fr));
+        gap: 18px;
+      }
+
+      .card {
+        background: var(--card);
+        border-radius:  var(--border-radius);
+        padding: 18px;
+        box-shadow: var(--shadow);
+        border: 1px solid rgba(15, 23, 36, 0.03);
+        margin-bottom: 10px;
+      }
+
+      .card h3 {
+        margin: 0 0 8px 0;
+        color: var(--accent);
+      }
+      .card p {
+        margin: 0;
         color: var(--muted);
-        text-decoration: none;
-        transition: 0.2s;
+        font-size: 14px;
       }
 
-      .card-title:hover .anchor {
-        opacity: 1;
+      .card .list {
+        margin-top: 12px;
+        padding: 0 0 0 0;
+        list-style: none;
+      }
+      .card .list li {
+        padding: 8px 0;
+        border-bottom: 1px dashed rgba(15, 23, 36, 0.03);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .card .list li:last-child {
+        border-bottom: 0;
       }
 
-      /* LISTS */
-      ul.list {
-        padding-right: 18px;
-      }
-
-      ul li {
-        margin-bottom: 6px;
-      }
-
-
-      /* FOOTER */
-      footer {
+      /* Footer */
+      footer.appfoot {
+        margin-top: 22px;
         text-align: center;
-        font-size: 12px;
         color: var(--muted);
-        margin-top: 40px;
-        padding: 20px 0;
-        border-top: 1px solid var(--border);
+        font-size: 13px;
       }
 
-      /* SCROLL OFFSET FOR ANCHORS */
-      section {
-        scroll-margin-top: 80px;
-      }
-
-      /* RESPONSIVE */
-      @media (max-width: 768px) {
-        .sidebar-toggle {
-          display: block;
+      /* Responsive */
+      @media (max-width: 980px) {
+        .grid {
+          grid-template-columns: 1fr;
         }
-
-        .sidebar {
+        nav.sidebar {
           position: fixed;
-          top: 0;
-          right: 0;
-          height: 100vh;
-          margin: 0;
-          border-radius: 0;
-          transform: translateX(0);
-          z-index: 1000;
+          right: 12px;
+          top: 80px;
+          height: calc(100vh - 100px);
+          z-index: 60;
         }
-
-        .sidebar.closed {
-          transform: translateX(100%);
-          width: var(--sidebar-w);
-          opacity: 1;
-        }
-
-        main {
-          padding-top: 80px;
+        .shell {
+          padding: 18px;
         }
       }
+
+      @media (max-width: 640px) {
+        header.appbar {
+          padding: 10px;
+        }
+        .search {
+          display: none;
+        }
+        nav.sidebar {
+          width: 92%;
+          min-width: unset;
+        }
+        .logo {
+          width: 40px;
+          height: 40px;
+        }
+      }
+
+      /* Small helpers */
+      .muted {
+        color: var(--muted);
+      }
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 10px;
+        border-radius: 999px;
+        background: rgba(15, 23, 36, 0.03);
+        font-size: 13px;
+      }
+      .toggle {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 8px;
+        border-radius:  var(--border-radius);
+        background: var(--card);
+        box-shadow: var(--shadow);
+        border: 1px solid rgba(15, 23, 36, 0.03);
+      }
+
+    
     </style>
   </head>
-
   <body>
-    <button class="sidebar-toggle" id="sidebarToggle">☰</button>
-    <div class="page-layout">
-      <aside class="sidebar" id="sidebar">
-        <nav>
-          <h2 class="menu-title">فهرست مطالب</h2>
-          <ul>
-            <li>
-              <label for="menu-item-1">
-                <span>🚩</span>
-                <span>شروع به کار</span>
-              </label>
-              <input type="checkbox" id="menu-item-1" checked />
-              <ul>
-                <li><a href="#login">صفحه ورود</a></li>
-                <li><a href="#desktop">میزکار</a></li>
-              </ul>
-            </li>
+    <div class="app" id="app" data-theme="light">
+      <!-- App Bar -->
+      <header class="appbar" role="banner" aria-label="نوار بالای برنامه">
+        <div class="brand" aria-hidden="false">
+          <div class="logo" aria-hidden="true">CRM</div>
+          <div>
+            <h1>راهنمای CRM</h1>
+            <div class="muted" style="font-size: 12px">
+              نسخه ۱.۰ — مستندات کاربری
+            </div>
+          </div>
+        </div>
 
-            <li>
-              <label for="menu-item-2">
-                <span>🛍️</span>
-                <span>مشتریان</span>
-              </label>
-              <input type="checkbox" id="menu-item-2" />
-              <ul>
-                <li><a href="#lead">سرنخ</a></li>
-                <li><a href="#account">حساب</a></li>
-                <li><a href="#contact">مخاطب</a></li>
-              </ul>
-            </li>
+        <div class="controls" role="navigation" aria-label="کنترل‌ها">
+          <div class="search" role="search" aria-label="جستجو در راهنما">
+       
+            
+            <input
+              id="searchInput"
+              type="search"
+              placeholder="جستجو در مستندات..."
+              aria-label="جستجو"
+            />
+          </div>
 
-            <li>
-              <label for="menu-item-3">
-                <span>💰</span>
-                <span>فروش</span>
-              </label>
-              <input type="checkbox" id="menu-item-3" />
-              <ul>
-                <li><a href="#opportunity">فرصت</a></li>
-                <li><a href="#quote">پیش فاکتور</a></li>
-                <li><a href="#invoice">فاکتور</a></li>
-                <li><a href="#sale-type">نوع فروش</a></li>
-                <li><a href="#sale-pipeline">روند فروش</a></li>
-              </ul>
-            </li>
+          <button
+            class="icon-btn"
+            id="sidebarToggle"
+            aria-expanded="true"
+            aria-controls="sidebar"
+            title="نمایش/پنهان فهرست"
+          >
+           
+          
+          </button>
 
-            <li>
-              <label for="menu-item-4">
-                <span>📆</span>
-                <span>عملیات روزانه</span>
-              </label>
-              <input type="checkbox" id="menu-item-4" />
-              <ul>
-                <li><a href="#activity">فعالیت</a></li>
-                <li><a href="#project">پروژه</a></li>
-                <li><a href="#ticket">تیکت</a></li>
-              </ul>
-            </li>
+        </div>
+      </header>
 
-            <li>
-              <label for="menu-item-5">
-                <span>📚</span>
-                <span>پایگاه دانش</span>
-              </label>
-              <input type="checkbox" id="menu-item-5" />
-              <ul>
-                <li><a href="#article">مقاله</a></li>
-                <li><a href="#faq">سوال و جواب</a></li>
-              </ul>
+      <!-- Shell -->
+      <div class="shell" role="main">
+        <!-- Sidebar -->
+        <nav id="sidebar" class="sidebar" aria-label="فهرست مطالب">
+          <h2>فهرست مطالب</h2>
+          <ul class="nav-list" id="navList">
+            <li
+              class="nav-item active"
+              data-target="login"
+              tabindex="0"
+              role="link"
+              aria-current="page"
+            >
+             
+              <span>🔐 صفحه ورود</span>
             </li>
-
-            <li>
-              <label for="menu-item-6">
-                <span>📈</span>
-                <span>گزارش</span>
-              </label>
-              <input type="checkbox" id="menu-item-6" />
-              <ul>
-                <li><a href="#report-lead">گزارش سرنخ</a></li>
-                <li><a href="#report-activity">گزارش فعالیت</a></li>
-                <li><a href="#forecast">پیش بینی فروش</a></li>
-                <li><a href="#sales-funnel">قیف فروش</a></li>
-              </ul>
+            <li class="nav-item" data-target="desktop" tabindex="0" role="link">
+               میزکار</span>
             </li>
-
-            <li>
-              <label for="menu-item-7">
-                <span>🏗️</span>
-                <span>اطلاعات پایه</span>
-              </label>
-              <input type="checkbox" id="menu-item-7" />
-              <ul>
-                <li><a href="#users">کاربران</a></li>
-                <li><a href="#roles">نقش</a></li>
-                <li><a href="#forms">فرم</a></li>
-                <li><a href="#currency">ارز</a></li>
-                <li><a href="#product">کالا</a></li>
-                <li><a href="#warehouse">انبار</a></li>
-              </ul>
+            <li class="nav-item" data-target="lead" tabindex="0" role="link">
+              
+              <span>🛍️ سرنخ</span>
             </li>
-
-            <li>
-              <label for="menu-item-8">
-                <span>⚙️</span>
-                <span>تنظیمات</span>
-              </label>
-              <input type="checkbox" id="menu-item-8" />
-              <ul>
-                <li><a href="#user-settings">کاربر</a></li>
-                <li><a href="#company-settings">شرکت</a></li>
-                <li><a href="#integration">یکپارچه سازی</a></li>
-                <li><a href="#api-keys">کلید دسترسی</a></li>
-              </ul>
+            <li
+              class="nav-item"
+              data-target="opportunity"
+              tabindex="0"
+              role="link"
+            >
+              
+              <span>💰 فرصت</span>
+            </li>
+            <li
+              class="nav-item"
+              data-target="activity"
+              tabindex="0"
+              role="link"
+            >
+           
+              <span>📆 فعالیت</span>
+            </li>
+            <li class="nav-item" data-target="section" tabindex="0" role="link">
+             
+              <span>📚 مقاله</span>
+            </li>
+            <li
+              class="nav-item"
+              data-target="report-lead"
+              tabindex="0"
+              role="link"
+            >
+           
+            
+              <span>📈 گزارش سرنخ</span>
+            </li>
+            <li class="nav-item" data-target="users" tabindex="0" role="link">
+              
+              </svg>
+              <span>🏗️ کاربران</span>
+            </li>
+            <li
+              class="nav-item"
+              data-target="user-settings"
+              tabindex="0"
+              role="link"
+            >
+            
+              <span>⚙️ تنظیمات کاربر</span>
             </li>
           </ul>
+
+
         </nav>
-      </aside>
-      <main>
-        <!-- Main Content -->
-        <header class="card">
-          <!-- Cover -->
-          <section class="mb-10">
-            <h1 class="text-4xl font-bold text-teal-700 mb-2">
-              راهنمای استفاده از CRM
-            </h1>
-            <p class="text-stone-600">
-              نسخه ۱.۰ — این راهنما برای کاربران سیستم مدیریت ارتباط با مشتری
-              طراحی شده است.
-            </p>
+
+        <!-- Main content -->
+        <main class="content" id="mainContent" tabindex="-1">
+          <!-- Header card -->
+          <section class="card" aria-labelledby="guideTitle">
+            <div
+              style="
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                gap: 12px;
+                flex-wrap: wrap;
+              "
+            >
+              <div>
+                <h2
+                  id="guideTitle"
+                  style="
+                    margin: 0 0 6px 0;
+                    font-size: 20px;
+                    color: var(--accent);
+                  "
+                >
+                  راهنمای استفاده از CRM
+                </h2>
+                <div class="muted" style="font-size: 13px">
+                  مستندات رسمی کاربران — نسخه ۱.۰
+                </div>
+              </div>
+              <div style="display: flex; gap: 10px; align-items: center">
+                <div class="pill"><strong>HNAM</strong></div>
+                <div class="muted" style="font-size: 13px">
+                  آخرین به‌روزرسانی: ۲۰۲۵
+                </div>
+              </div>
+            </div>
           </section>
-        </header>
-        <div class="">
-          <section class="section-wrapper">
-            <h1 class="title-main">شروع به کار</h1>
-            <p class="section-desc">
-              در این بخش با مراحل اولیه ورود و کار با میزکار آشنا می‌شوید.
-            </p>
 
-            <section id="login" class="card">
-              <h2 class="card-title">
-                
-                <span>🔐</span>
-                <span>صفحه ورود</span>
-                <a class="anchor" href="#login">#</a>
-              </h2>
-              <p>
-                برای ورود به سیستم، به آدرس ورود بروید و اطلاعات مورد نیاز (نام
-                شرکت، آدرس ایمیل و رمز عبور) را وارد کنید. سپس روی دکمه ورود
-                کلیک کنید.
-              </p>
-            </section>
+          <!-- Grid of sections -->
+          <div class="grid" id="sectionsGrid">
+        
 
-            <section id="desktop" class="card">
-              <h2 class="card-title">
-                <span>🗃️</span>
-                <span>میزکار</span>
-                <a class="anchor" href="#desktop">#</a>
-              </h2>
-              <p>
-                پس از ورود، صفحه میزکار نمایش داده می‌شود که شامل سه بخش اصلی
-                است:
-              </p>
-
+            <!-- Desktop -->
+            <section id="desktop" class="card" aria-labelledby="desktopTitle">
+              <h3 id="desktopTitle">🗃️ میزکار</h3>
+              <p>پس از ورود، میزکار شامل بخش‌های زیر است:</p>
               <ul class="list">
                 <li>
-                  <b>نوار بالای صفحه:</b> برای جستجو، مشاهده نوتیفیکیشن‌ها و
-                  خروج از حساب کاربری.
+                  <span>نوار بالا</span
+                  ><strong class="muted">جستجو و نوتیفیکیشن‌ها</strong>
                 </li>
-                <li><b>منوی سمت راست:</b> شامل تمام ماژول‌ها و دسترسی‌ها.</li>
                 <li>
-                  <b>بخش میزکار:</b> نمایش کارپوشه، گزارش فروش، پیام‌رسان و
-                  تقویم.
+                  <span>منوی سمت راست</span
+                  ><strong class="muted">دسترسی به ماژول‌ها</strong>
+                </li>
+                <li>
+                  <span>بخش اصلی</span
+                  ><strong class="muted">کارپوشه، گزارش‌ها و تقویم</strong>
                 </li>
               </ul>
             </section>
-          </section>
 
-          <!-- Footer -->
-          <footer
-            class="text-center text-sm text-stone-500 mt-10 border-t pt-4"
-          >
+
+  
+
+          </div>
+
+          <footer class="appfoot" role="contentinfo">
             © ۲۰۲۵ HNAM — راهنمای CRM
           </footer>
-        </div>
-      </main>
+        </main>
+      </div>
     </div>
 
     <script>
-      window.addEventListener("load", () => {
-        if (window.location.hash) {
-          const targetEl = document.querySelector(window.location.hash);
-          if (targetEl) targetEl.scrollIntoView();
+      // Elements
+      const sidebar = document.getElementById("sidebar");
+      const sidebarToggle = document.getElementById("sidebarToggle");
+      const navList = document.getElementById("navList");
+      const mainContent = document.getElementById("mainContent");
+      const searchInput = document.getElementById("searchInput");
+      const themeToggle = document.getElementById("themeToggle");
+      const app = document.getElementById("app");
+
+  
+
+      // Sidebar toggle
+      sidebarToggle.addEventListener("click", () => {
+        const closed = sidebar.classList.toggle("closed");
+        sidebarToggle.setAttribute("aria-expanded", String(!closed));
+        localStorage.setItem("crm_sidebar_open", closed ? "closed" : "open");
+      });
+
+     
+
+      // Navigation click -> scroll to section
+      navList.addEventListener("click", (e) => {
+        const item = e.target.closest(".nav-item");
+        if (!item) return;
+        activateNavItem(item);
+        const targetId = item.dataset.target;
+        const targetEl = document.getElementById(targetId);
+        if (targetEl) {
+          targetEl.scrollIntoView({ behavior: "smooth", block: "start" });
+          mainContent.focus();
         }
       });
-    </script>
 
-    <script>
-      const sidebar = document.getElementById("sidebar");
-      const toggle = document.getElementById("sidebarToggle");
 
-      toggle.addEventListener("click", () => {
-        sidebar.classList.toggle("closed");
+      function activateNavItem(item) {
+        navList
+          .querySelectorAll(".nav-item")
+          .forEach((i) => i.classList.remove("active"));
+        item.classList.add("active");
+      }
+
+      // Simple client-side search: highlights matching sections and filters nav
+      searchInput.addEventListener("input", (e) => {
+        const q = e.target.value.trim().toLowerCase();
+        const sections = document.querySelectorAll("main .card, main section");
+        sections.forEach((sec) => {
+          const text = sec.innerText.toLowerCase();
+          if (!q || text.includes(q)) {
+            sec.style.display = "";
+          } else {
+            sec.style.display = "none";
+          }
+        });
+
+        // Filter nav items
+        navList.querySelectorAll(".nav-item").forEach((item) => {
+          const label = item.innerText.toLowerCase();
+          item.style.display = !q || label.includes(q) ? "" : "none";
+        });
+      });
+
+      // Deep-link handling: if URL has hash, scroll to it and activate nav
+      function handleHash() {
+        const id = location.hash.replace("#", "");
+        if (!id) return;
+        const target = document.getElementById(id);
+        if (target) {
+          target.scrollIntoView({ behavior: "smooth", block: "start" });
+          const navItem = navList.querySelector(`[data-target="${id}"]`);
+          if (navItem) activateNavItem(navItem);
+        }
+      }
+      window.addEventListener("hashchange", handleHash);
+      handleHash();
+
+      // Accessibility: focus main content on load for screen readers
+      window.addEventListener("load", () => {
+        setTimeout(() => mainContent.focus(), 300);
+      });
+
+      // Small enhancement: keyboard shortcut "f" focuses search
+      window.addEventListener("keydown", (e) => {
+        if (
+          e.key.toLowerCase() === "f" &&
+          !/input|textarea/i.test(document.activeElement.tagName)
+        ) {
+          e.preventDefault();
+          searchInput.focus();
+          searchInput.select();
+        }
       });
     </script>
   </body>
