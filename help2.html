@@ -1,0 +1,628 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <title>راهنمای CRM</title>
+
+    <link
+      href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+
+    <style>
+      :root {
+        --bg: #f8fafc;
+        --surface: #ffffff;
+        --surface-2: #f1f5f9;
+
+        --text: #0f172a;
+        --muted: #64748b;
+
+        --primary: #0f766e;
+        --primary-light: #14b8a6;
+
+        --border: #e2e8f0;
+
+        --shadow: 0 10px 25px rgba(15, 23, 42, 0.08);
+
+        --radius: 20px;
+
+        --sidebar-width: 320px;
+      }
+
+      [data-theme="dark"] {
+        --bg: #020617;
+        --surface: #0f172a;
+        --surface-2: #1e293b;
+
+        --text: #f8fafc;
+        --muted: #94a3b8;
+
+        --border: #334155;
+
+        --shadow: 0 10px 25px rgba(0, 0, 0, 0.35);
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      html {
+        scroll-behavior: smooth;
+      }
+
+      body {
+        font-family: Vazirmatn, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        line-height: 1.9;
+      }
+
+      ::-webkit-scrollbar {
+        width: 10px;
+      }
+
+      ::-webkit-scrollbar-thumb {
+        background: #cbd5e1;
+        border-radius: 999px;
+      }
+
+      .progress {
+        position: fixed;
+        top: 0;
+        right: 0;
+        height: 4px;
+        width: 0;
+        z-index: 9999;
+        background: linear-gradient(
+          90deg,
+          var(--primary-light),
+          var(--primary)
+        );
+      }
+
+      .layout {
+        display: grid;
+        grid-template-columns: 320px 1fr;
+        min-height: 100vh;
+      }
+
+      .sidebar {
+        position: sticky;
+        top: 0;
+        height: 100vh;
+        overflow: auto;
+
+        background: rgba(255, 255, 255, 0.75);
+        backdrop-filter: blur(20px);
+
+        border-left: 1px solid var(--border);
+        padding: 24px;
+      }
+
+      [data-theme="dark"] .sidebar {
+        background: rgba(15, 23, 42, 0.85);
+      }
+
+      .logo {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 24px;
+      }
+
+      .logo-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 14px;
+
+        display: grid;
+        place-items: center;
+
+        color: white;
+        font-weight: 800;
+
+        background: linear-gradient(
+          135deg,
+          var(--primary-light),
+          var(--primary)
+        );
+      }
+
+      .logo-text h2 {
+        font-size: 1rem;
+      }
+
+      .logo-text p {
+        color: var(--muted);
+        font-size: 0.8rem;
+      }
+
+      .search {
+        width: 100%;
+        border: none;
+        outline: none;
+
+        padding: 12px 14px;
+
+        border-radius: 14px;
+
+        background: var(--surface-2);
+        color: var(--text);
+
+        margin-bottom: 20px;
+      }
+
+      .menu {
+        list-style: none;
+      }
+
+      .menu li {
+        margin-bottom: 6px;
+      }
+
+      .menu a {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+
+        text-decoration: none;
+
+        color: var(--muted);
+
+        padding: 10px 12px;
+
+        border-radius: 12px;
+
+        transition: 0.25s;
+      }
+
+      .menu a:hover {
+        background: #ccfbf1;
+        color: var(--primary);
+      }
+
+      .menu a.active {
+        background: #ccfbf1;
+        color: var(--primary);
+        font-weight: 700;
+      }
+
+      .content {
+        max-width: 1200px;
+        width: 100%;
+        padding: 40px;
+        margin: auto;
+      }
+
+      .hero {
+        margin-bottom: 40px;
+      }
+
+      .badge {
+        display: inline-flex;
+
+        padding: 6px 14px;
+
+        border-radius: 999px;
+
+        background: #ccfbf1;
+        color: var(--primary);
+
+        font-size: 0.85rem;
+      }
+
+      .hero h1 {
+        font-size: 3rem;
+        margin: 16px 0;
+      }
+
+      .hero p {
+        color: var(--muted);
+      }
+
+      .card {
+        background: var(--surface);
+
+        border: 1px solid var(--border);
+
+        border-radius: var(--radius);
+
+        box-shadow: var(--shadow);
+
+        padding: 28px;
+
+        margin-bottom: 24px;
+      }
+
+      .section-title {
+        font-size: 2rem;
+        margin-bottom: 10px;
+      }
+
+      .section-desc {
+        color: var(--muted);
+        margin-bottom: 25px;
+      }
+
+      .card-title {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+
+        font-size: 1.4rem;
+        margin-bottom: 18px;
+      }
+
+      .anchor {
+        margin-right: auto;
+        opacity: 0;
+        transition: 0.25s;
+
+        text-decoration: none;
+        color: var(--primary);
+      }
+
+      .card:hover .anchor {
+        opacity: 1;
+      }
+
+      .list {
+        padding-right: 20px;
+      }
+
+      .list li {
+        margin-bottom: 10px;
+      }
+
+      .topbar {
+        position: fixed;
+        left: 20px;
+        bottom: 20px;
+
+        display: flex;
+        gap: 10px;
+      }
+
+      .fab {
+        width: 48px;
+        height: 48px;
+
+        border: none;
+
+        border-radius: 14px;
+
+        cursor: pointer;
+
+        background: var(--surface);
+
+        color: var(--text);
+
+        box-shadow: var(--shadow);
+      }
+
+      .mobile-toggle {
+        display: none;
+      }
+
+      footer {
+        text-align: center;
+        color: var(--muted);
+        margin-top: 60px;
+      }
+
+      @media (max-width: 1000px) {
+        .layout {
+          grid-template-columns: 1fr;
+        }
+
+        .sidebar {
+          position: fixed;
+          right: 0;
+          top: 0;
+
+          width: 300px;
+
+          transform: translateX(100%);
+          transition: 0.3s;
+
+          z-index: 1000;
+        }
+
+        .sidebar.open {
+          transform: translateX(0);
+        }
+
+        .mobile-toggle {
+          display: flex;
+
+          position: fixed;
+
+          top: 16px;
+          right: 16px;
+
+          z-index: 1100;
+        }
+
+        .content {
+          padding: 24px;
+        }
+
+        .hero h1 {
+          font-size: 2rem;
+        }
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="progress" id="progress"></div>
+
+    <button class="fab mobile-toggle" id="menuBtn">☰</button>
+
+    <div class="layout">
+      <aside class="sidebar" id="sidebar">
+        <div class="logo">
+          <div class="logo-icon">CRM</div>
+
+          <div class="logo-text">
+            <h2>راهنمای سیستم</h2>
+            <p>مستندات کاربران</p>
+          </div>
+        </div>
+
+        <input
+          type="text"
+          class="search"
+          placeholder="جستجو..."
+          id="searchInput"
+        />
+
+        <ul class="menu" id="menu">
+          <li><a href="#login">🔐 صفحه ورود</a></li>
+          <li><a href="#desktop">🖥 میزکار</a></li>
+          <li><a href="#lead">🎯 سرنخ</a></li>
+          <li><a href="#account">🏢 حساب</a></li>
+          <li><a href="#contact">👤 مخاطب</a></li>
+          <li><a href="#opportunity">💰 فرصت فروش</a></li>
+          <li><a href="#quote">📄 پیش فاکتور</a></li>
+          <li><a href="#invoice">🧾 فاکتور</a></li>
+          <li><a href="#activity">📅 فعالیت</a></li>
+          <li><a href="#project">📦 پروژه</a></li>
+          <li><a href="#ticket">🎫 تیکت</a></li>
+          <li><a href="#report">📈 گزارشات</a></li>
+        </ul>
+      </aside>
+
+      <main class="content">
+        <header class="hero">
+          <span class="badge"> نسخه 1.0 </span>
+
+          <h1>راهنمای استفاده از CRM</h1>
+
+          <p>مستندات کامل سیستم مدیریت ارتباط با مشتری</p>
+        </header>
+
+        <section>
+          <h2 class="section-title">شروع به کار</h2>
+
+          <p class="section-desc">
+            در این بخش با مراحل اولیه کار با سیستم آشنا می‌شوید.
+          </p>
+
+          <section id="login" class="card">
+            <h3 class="card-title">
+              🔐 صفحه ورود
+              <a href="#login" class="anchor">#</a>
+            </h3>
+
+            <p>
+              برای ورود به سیستم نام شرکت، ایمیل و رمز عبور را وارد کرده و روی
+              دکمه ورود کلیک کنید.
+            </p>
+          </section>
+
+          <section id="desktop" class="card">
+            <h3 class="card-title">
+              🖥 میزکار
+              <a href="#desktop" class="anchor">#</a>
+            </h3>
+
+            <p>پس از ورود به سیستم داشبورد اصلی نمایش داده می‌شود.</p>
+
+            <ul class="list">
+              <li>نوار بالایی</li>
+              <li>منوی دسترسی سریع</li>
+              <li>کارپوشه</li>
+              <li>تقویم</li>
+              <li>گزارش‌ها</li>
+            </ul>
+          </section>
+
+          <section id="lead" class="card">
+            <h3 class="card-title">
+              🎯 سرنخ
+              <a href="#lead" class="anchor">#</a>
+            </h3>
+
+            <p>مدیریت مشتریان بالقوه.</p>
+          </section>
+
+          <section id="account" class="card">
+            <h3 class="card-title">
+              🏢 حساب
+              <a href="#account" class="anchor">#</a>
+            </h3>
+
+            <p>مدیریت شرکت‌ها و سازمان‌ها.</p>
+          </section>
+
+          <section id="contact" class="card">
+            <h3 class="card-title">
+              👤 مخاطب
+              <a href="#contact" class="anchor">#</a>
+            </h3>
+
+            <p>مدیریت اشخاص و ارتباطات.</p>
+          </section>
+
+          <section id="opportunity" class="card">
+            <h3 class="card-title">
+              💰 فرصت فروش
+              <a href="#opportunity" class="anchor">#</a>
+            </h3>
+
+            <p>پیگیری فرصت‌های فروش.</p>
+          </section>
+
+          <section id="quote" class="card">
+            <h3 class="card-title">
+              📄 پیش فاکتور
+              <a href="#quote" class="anchor">#</a>
+            </h3>
+
+            <p>ثبت و مدیریت پیش فاکتورها.</p>
+          </section>
+
+          <section id="invoice" class="card">
+            <h3 class="card-title">
+              🧾 فاکتور
+              <a href="#invoice" class="anchor">#</a>
+            </h3>
+
+            <p>مدیریت فاکتورهای فروش.</p>
+          </section>
+
+          <section id="activity" class="card">
+            <h3 class="card-title">
+              📅 فعالیت
+              <a href="#activity" class="anchor">#</a>
+            </h3>
+
+            <p>مدیریت وظایف و فعالیت‌های روزانه.</p>
+          </section>
+
+          <section id="project" class="card">
+            <h3 class="card-title">
+              📦 پروژه
+              <a href="#project" class="anchor">#</a>
+            </h3>
+
+            <p>مدیریت پروژه‌ها.</p>
+          </section>
+
+          <section id="ticket" class="card">
+            <h3 class="card-title">
+              🎫 تیکت
+              <a href="#ticket" class="anchor">#</a>
+            </h3>
+
+            <p>پشتیبانی و مدیریت درخواست‌ها.</p>
+          </section>
+
+          <section id="report" class="card">
+            <h3 class="card-title">
+              📈 گزارشات
+              <a href="#report" class="anchor">#</a>
+            </h3>
+
+            <p>انواع گزارش‌های مدیریتی و عملیاتی.</p>
+          </section>
+        </section>
+
+        <footer>© 2025 HNAM CRM Documentation</footer>
+      </main>
+    </div>
+
+    <div class="topbar">
+      <button class="fab" id="themeBtn">🌙</button>
+    </div>
+
+    <script>
+      const themeBtn = document.getElementById("themeBtn");
+
+      themeBtn.addEventListener("click", () => {
+        const root = document.documentElement;
+
+        const current = root.getAttribute("data-theme");
+
+        if (current === "dark") {
+          root.removeAttribute("data-theme");
+          themeBtn.textContent = "🌙";
+        } else {
+          root.setAttribute("data-theme", "dark");
+          themeBtn.textContent = "☀️";
+        }
+      });
+    </script>
+
+    <script>
+      const progress = document.getElementById("progress");
+
+      window.addEventListener("scroll", () => {
+        const scrollTop = window.scrollY;
+
+        const docHeight =
+          document.documentElement.scrollHeight - window.innerHeight;
+
+        const percent = (scrollTop / docHeight) * 100;
+
+        progress.style.width = percent + "%";
+      });
+    </script>
+
+    <script>
+      const sections = document.querySelectorAll("section[id]");
+
+      const navLinks = document.querySelectorAll(".menu a");
+
+      window.addEventListener("scroll", () => {
+        let current = "";
+
+        sections.forEach((section) => {
+          const top = section.offsetTop - 150;
+
+          if (window.scrollY >= top) {
+            current = section.id;
+          }
+        });
+
+        navLinks.forEach((link) => {
+          link.classList.remove("active");
+
+          if (link.getAttribute("href") === "#" + current) {
+            link.classList.add("active");
+          }
+        });
+      });
+    </script>
+
+    <script>
+      const searchInput = document.getElementById("searchInput");
+
+      searchInput.addEventListener("input", (e) => {
+        const value = e.target.value.toLowerCase();
+
+        document.querySelectorAll(".card").forEach((card) => {
+          const text = card.innerText.toLowerCase();
+
+          card.style.display = text.includes(value) ? "block" : "none";
+        });
+      });
+    </script>
+
+    <script>
+      const sidebar = document.getElementById("sidebar");
+
+      const menuBtn = document.getElementById("menuBtn");
+
+      menuBtn.addEventListener("click", () => {
+        sidebar.classList.toggle("open");
+      });
+    </script>
+  </body>
+</html>
